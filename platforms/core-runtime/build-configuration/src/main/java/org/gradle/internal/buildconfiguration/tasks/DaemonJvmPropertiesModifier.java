@@ -19,12 +19,14 @@ package org.gradle.internal.buildconfiguration.tasks;
 import org.gradle.api.UncheckedIOException;
 import org.gradle.internal.buildconfiguration.DaemonJvmPropertiesConfigurator;
 import org.gradle.internal.buildconfiguration.DaemonJvmPropertiesDefaults;
+import org.gradle.internal.service.scopes.Scope;
+import org.gradle.internal.service.scopes.ServiceScope;
 import org.gradle.internal.util.PropertiesUtils;
 import org.gradle.jvm.toolchain.JavaLanguageVersion;
 import org.gradle.platform.BuildPlatform;
 import org.gradle.util.internal.GFileUtils;
+import org.jspecify.annotations.Nullable;
 
-import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -33,6 +35,7 @@ import java.util.Properties;
 
 import static org.gradle.internal.buildconfiguration.tasks.DaemonJvmPropertiesUtils.getToolchainUrlPropertyForPlatform;
 
+@ServiceScope(Scope.Project.class)
 public class DaemonJvmPropertiesModifier {
 
     public DaemonJvmPropertiesModifier() {

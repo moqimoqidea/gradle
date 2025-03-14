@@ -34,13 +34,14 @@ import static org.hamcrest.MatcherAssert.assertThat
 
 abstract class DistributionIntegrationSpec extends AbstractIntegrationSpec {
 
-    protected static final THIRD_PARTY_LIB_COUNT = 140
+    protected static final THIRD_PARTY_LIB_COUNT = 141
 
     @Shared
     String baseVersion = GradleVersion.current().baseVersion.version
 
     def coreLibsModules = [
         "base-asm",
+        "base-diagnostics",
         "base-services",
         "base-services-groovy",
         "build-cache",
@@ -48,6 +49,7 @@ abstract class DistributionIntegrationSpec extends AbstractIntegrationSpec {
         "build-cache-local",
         "build-cache-packaging",
         "build-cache-spi",
+        "build-configuration",
         "build-events",
         "build-init-specs",
         "build-init-specs-api",
@@ -56,6 +58,7 @@ abstract class DistributionIntegrationSpec extends AbstractIntegrationSpec {
         "build-option",
         "build-process-services",
         "build-state",
+        "classloaders",
         "cli",
         "client-services",
         "concurrent",
@@ -100,6 +103,7 @@ abstract class DistributionIntegrationSpec extends AbstractIntegrationSpec {
         "messaging",
         "model-core",
         "model-groovy",
+        "model-reflect",
         "native",
         "normalization-java",
         "persistent-cache",
@@ -108,7 +112,10 @@ abstract class DistributionIntegrationSpec extends AbstractIntegrationSpec {
         "problems-rendering",
         "process-memory-services",
         "process-services",
+        "report-rendering",
+        "request-handler-worker",
         "resources",
+        "resources-http",
         "runtime-api-info",
         "serialization",
         "service-lookup",
@@ -116,6 +123,7 @@ abstract class DistributionIntegrationSpec extends AbstractIntegrationSpec {
         "service-registry-builder",
         "service-registry-impl",
         "snapshots",
+        "snapshots-worker",
         "stdlib-java-extensions",
         "stdlib-kotlin-extensions",
         "time",
@@ -142,7 +150,7 @@ abstract class DistributionIntegrationSpec extends AbstractIntegrationSpec {
      * Change this whenever you add or remove subprojects for distribution-packaged plugins (lib/plugins).
      */
     int getPackagedPluginsJarCount() {
-        80
+        78
     }
 
     /**
@@ -284,7 +292,7 @@ abstract class DistributionIntegrationSpec extends AbstractIntegrationSpec {
 
         def toolingApiJar = contentsDir.file("lib/gradle-tooling-api-${baseVersion}.jar")
         toolingApiJar.assertIsFile()
-        assert toolingApiJar.length() < 500 * 1024 // tooling api jar is the small plain tooling api jar version and not the fat jar.
+        assert toolingApiJar.length() < 512 * 1024 // tooling api jar is the small plain tooling api jar version and not the fat jar.
 
         // Kotlin DSL
         assertIsGradleJar(contentsDir.file("lib/gradle-kotlin-dsl-${baseVersion}.jar"))

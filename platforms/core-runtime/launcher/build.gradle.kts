@@ -11,6 +11,7 @@ dependencies {
     api(projects.buildOperations)
     api(projects.buildOption)
     api(projects.buildState)
+    api(projects.classloaders)
     api(projects.cli)
     api(projects.concurrent)
     api(projects.core)
@@ -37,6 +38,8 @@ dependencies {
     api(projects.serviceLookup)
     api(projects.serviceProvider)
     api(projects.snapshots)
+    api(projects.snapshotsWorker)
+    api(projects.requestHandlerWorker)
     api(projects.time)
     api(projects.toolingApi)
 
@@ -46,7 +49,7 @@ dependencies {
     api(projects.daemonServices)
 
     api(libs.guava)
-    api(libs.jsr305)
+    api(libs.jspecify)
 
     implementation(projects.enterpriseOperations)
     implementation(projects.functional)
@@ -80,6 +83,7 @@ dependencies {
     integTestImplementation(libs.commonsLang)
     integTestImplementation(libs.commonsIo)
     integTestImplementation(testFixtures(projects.buildConfiguration))
+    integTestImplementation(testFixtures(projects.toolchainsJvmShared))
 
     integTestDistributionRuntimeOnly(projects.distributionsFull) {
         because("built-in options are required to be present at runtime for 'TaskOptionsSpec'")

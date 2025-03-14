@@ -47,8 +47,8 @@ import org.gradle.internal.logging.text.TreeFormatter;
 import org.gradle.internal.state.Managed;
 import org.gradle.internal.state.ModelObject;
 import org.gradle.internal.state.OwnerAware;
+import org.jspecify.annotations.Nullable;
 
-import javax.annotation.Nullable;
 import java.io.File;
 import java.util.AbstractSet;
 import java.util.ArrayList;
@@ -480,7 +480,7 @@ public class DefaultConfigurableFileCollection extends CompositeFileCollection i
         return result;
     }
 
-    public void replace(Transformer<? extends @org.jetbrains.annotations.Nullable FileCollection, ? super FileCollection> transformation) {
+    public void replace(Transformer<? extends @Nullable FileCollection, ? super FileCollection> transformation) {
         FileCollection newValue = transformation.transform(shallowCopy());
         if (newValue != null) {
             setFrom(newValue);
@@ -492,6 +492,10 @@ public class DefaultConfigurableFileCollection extends CompositeFileCollection i
     @Override
     public void attachOwner(@Nullable ModelObject owner, DisplayName displayName) {
         this.displayName = displayName;
+    }
+
+    public PathToFileResolver getResolver() {
+        return resolver;
     }
 
     private interface ValueCollector {
@@ -671,6 +675,9 @@ public class DefaultConfigurableFileCollection extends CompositeFileCollection i
             ImmutableList.Builder<Object> builder = ImmutableList.builderWithExpectedSize(items.size());
             boolean hasChanges = false;
             for (Object candidate : items) {
+                if (candidate == null) {
+                    continue;
+                }
                 if (candidate instanceof FileCollectionInternal) {
                     FileCollectionInternal newCollection = ((FileCollectionInternal) candidate).replace(original, supplier);
                     hasChanges |= newCollection != candidate;

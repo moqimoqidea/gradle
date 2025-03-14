@@ -10,10 +10,8 @@ errorprone {
         "MalformedInlineTag", // 3 occurrences
         "MixedMutabilityReturnType", // 3 occurrences
         "NonApiType", // 1 occurrences
-        "ObjectEqualsForPrimitives", // 2 occurrences
         "ReferenceEquality", // 2 occurrences
         "StringCharset", // 1 occurrences
-        "UnusedMethod", // 1 occurrences
     )
 }
 
@@ -28,7 +26,7 @@ dependencies {
     api(projects.resources)
     api(projects.persistentCache)
     api(projects.declarativeDslApi)
-    api(libs.jsr305)
+    api(libs.jspecify)
     api(libs.groovy)
     api(libs.groovyAnt)
     api(libs.guava)
@@ -39,7 +37,9 @@ dependencies {
     implementation(projects.baseServicesGroovy)
     implementation(projects.logging)
     implementation(projects.buildProcessServices)
+
     implementation(libs.commonsLang)
+    implementation(libs.jsr305)
     implementation(libs.slf4jApi)
 
     runtimeOnly(libs.kotlinReflect)

@@ -19,12 +19,11 @@ import com.google.common.collect.ImmutableList;
 import org.apache.commons.lang.StringUtils;
 import org.gradle.BuildResult;
 import org.gradle.api.Action;
-import org.gradle.api.NonNullApi;
 import org.gradle.api.internal.DocumentationRegistry;
 import org.gradle.api.logging.LogLevel;
 import org.gradle.api.logging.configuration.LoggingConfiguration;
 import org.gradle.api.logging.configuration.ShowStacktrace;
-import org.gradle.api.problems.Problem;
+import org.gradle.api.problems.internal.InternalProblem;
 import org.gradle.api.problems.internal.ProblemLocator;
 import org.gradle.execution.MultipleBuildFailures;
 import org.gradle.initialization.BuildClientMetaData;
@@ -44,8 +43,9 @@ import org.gradle.internal.logging.text.StyledTextOutput;
 import org.gradle.internal.logging.text.StyledTextOutputFactory;
 import org.gradle.problems.internal.rendering.ProblemRenderer;
 import org.gradle.util.internal.GUtil;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.NullMarked;
 
-import javax.annotation.Nonnull;
 import java.io.StringWriter;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -74,14 +74,14 @@ import static org.gradle.internal.logging.text.StyledTextOutput.Style.UserInput;
 /**
  * Reports the build exception, if any.
  */
-@NonNullApi
+@NullMarked
 public class BuildExceptionReporter implements Action<Throwable> {
     private static final String NO_ERROR_MESSAGE_INDICATOR = "(no error message)";
 
     public static final String RESOLUTION_LINE_PREFIX = "> ";
     public static final String LINE_PREFIX_LENGTH_SPACES = repeat(" ", RESOLUTION_LINE_PREFIX.length());
 
-    @NonNullApi
+    @NullMarked
     private enum ExceptionStyle {
         NONE, FULL
     }
@@ -115,11 +115,11 @@ public class BuildExceptionReporter implements Action<Throwable> {
     }
 
     @Override
-    public void execute(@Nonnull Throwable failure) {
+    public void execute(@NonNull Throwable failure) {
         execute(failure, t -> Collections.emptyList());
     }
 
-    public void execute(@Nonnull Throwable failure, ProblemLocator problemLocator) {
+    public void execute(@NonNull Throwable failure, ProblemLocator problemLocator) {
         if (failure instanceof MultipleBuildFailures) {
             renderMultipleBuildExceptions((MultipleBuildFailures) failure, problemLocator);
         } else {
@@ -384,8 +384,8 @@ public class BuildExceptionReporter implements Action<Throwable> {
             resolutions.addAll(((ResolutionProvider) throwable).getResolutions());
         }
 
-        Collection<Problem> all = problemLocator.findAll(throwable);
-        for (Problem problem : all) {
+        Collection<InternalProblem> all = problemLocator.findAll(throwable);
+        for (InternalProblem problem : all) {
             resolutions.addAll(problem.getSolutions());
         }
 
@@ -422,7 +422,7 @@ public class BuildExceptionReporter implements Action<Throwable> {
         try {
             String msg = throwable instanceof CompilationFailedIndicator ? ((CompilationFailedIndicator) throwable).getShortMessage() : throwable.getMessage();
             StringBuilder builder = new StringBuilder(msg == null ? "" : msg);
-            Collection<Problem> problems = problemLocator.findAll(throwable);
+            Collection<InternalProblem> problems = problemLocator.findAll(throwable);
             if (!problems.isEmpty()) {
                 builder.append(System.lineSeparator());
                 StringWriter problemWriter = new StringWriter();
@@ -465,7 +465,7 @@ public class BuildExceptionReporter implements Action<Throwable> {
         }
     }
 
-    @NonNullApi
+    @NullMarked
     private static class FailureDetails {
         Throwable failure;
         final BufferingStyledTextOutput summary = new BufferingStyledTextOutput();
@@ -503,7 +503,7 @@ public class BuildExceptionReporter implements Action<Throwable> {
         }
     }
 
-    @NonNullApi
+    @NullMarked
     private class ContextImpl implements FailureResolutionAware.Context {
         private final BufferingStyledTextOutput resolution;
 
