@@ -26,6 +26,7 @@ import org.gradle.api.internal.artifacts.transform.TransformActionScheme
 import org.gradle.api.internal.artifacts.transform.TransformParameterScheme
 import org.gradle.api.internal.artifacts.transform.TransformStepNode
 import org.gradle.api.internal.artifacts.transform.TransformStepNodeFactory
+import org.gradle.api.internal.attributes.AttributeDesugaring
 import org.gradle.api.internal.attributes.AttributesFactory
 import org.gradle.api.internal.file.FileCollectionFactory
 import org.gradle.api.internal.file.FileFactory
@@ -36,7 +37,6 @@ import org.gradle.api.internal.file.FileResolver
 import org.gradle.api.internal.file.collections.DirectoryFileTreeFactory
 import org.gradle.api.internal.provider.PropertyFactory
 import org.gradle.api.internal.provider.ValueSourceProviderFactory
-import org.gradle.api.model.ObjectFactory
 import org.gradle.api.problems.internal.InternalProblems
 import org.gradle.api.tasks.util.PatternSet
 import org.gradle.composite.internal.BuildTreeWorkGraphController
@@ -85,6 +85,7 @@ import org.gradle.internal.serialize.codecs.core.MapEntrySnapshotCodec
 import org.gradle.internal.serialize.codecs.core.MapPropertyCodec
 import org.gradle.internal.serialize.codecs.core.NullValueSnapshotCodec
 import org.gradle.internal.serialize.codecs.core.OrdinalNodeCodec
+import org.gradle.internal.serialize.codecs.core.PathToFileResolverCodec
 import org.gradle.internal.serialize.codecs.core.PatternSetCodec
 import org.gradle.internal.serialize.codecs.core.PropertyCodec
 import org.gradle.internal.serialize.codecs.core.ProviderCodec
@@ -151,7 +152,6 @@ class Codecs(
     propertyFactory: PropertyFactory,
     filePropertyFactory: FilePropertyFactory,
     fileResolver: FileResolver,
-    objectFactory: ObjectFactory,
     instantiator: Instantiator,
     fileSystemOperations: FileSystemOperations,
     val taskNodeFactory: TaskNodeFactory,
@@ -164,6 +164,7 @@ class Codecs(
     parameterScheme: TransformParameterScheme,
     actionScheme: TransformActionScheme,
     attributesFactory: AttributesFactory,
+    attributeDesugaring: AttributeDesugaring,
     valueSourceProviderFactory: ValueSourceProviderFactory,
     calculatedValueContainerFactory: CalculatedValueContainerFactory,
     patternSetFactory: Factory<PatternSet>,
@@ -200,7 +201,7 @@ class Codecs(
             bind(DefaultContextAwareTaskLoggerCodec)
             bind(LoggerCodec)
 
-            fileCollectionTypes(directoryFileTreeFactory, fileCollectionFactory, artifactSetConverter, fileOperations, fileFactory, patternSetFactory)
+            fileCollectionTypes(directoryFileTreeFactory, fileCollectionFactory, artifactSetConverter, fileOperations, fileFactory, patternSetFactory, fileLookup)
 
             bind(org.gradle.internal.serialize.codecs.core.ApiTextResourceAdapterCodec)
 
@@ -208,7 +209,7 @@ class Codecs(
             bind(SerializedLambdaParametersCheckingCodec)
 
             // Dependency management types
-            bind(ArtifactCollectionCodec(calculatedValueContainerFactory, artifactSetConverter))
+            bind(ArtifactCollectionCodec(calculatedValueContainerFactory, artifactSetConverter, attributeDesugaring))
             bind(ImmutableAttributesCodec(attributesFactory, managedFactoryRegistry))
             bind(AttributeContainerCodec(attributesFactory, managedFactoryRegistry))
             bind(ComponentVariantIdentifierCodec)
@@ -232,7 +233,7 @@ class Codecs(
             bind(WorkNodeActionCodec)
             bind(CapabilitySerializer())
 
-            bind(DefaultCopySpecCodec(patternSetFactory, fileCollectionFactory, objectFactory, instantiator, fileSystemOperations))
+            bind(DefaultCopySpecCodec(patternSetFactory, fileCollectionFactory, propertyFactory, instantiator, fileSystemOperations))
             bind(DestinationRootCopySpecCodec(fileResolver))
 
             bind(TaskReferenceCodec)
@@ -307,7 +308,7 @@ class Codecs(
         baseTypes()
 
         providerTypes(propertyFactory, filePropertyFactory, nestedProviderCodec(valueSourceProviderFactory, buildStateRegistry, flowProviders))
-        fileCollectionTypes(directoryFileTreeFactory, fileCollectionFactory, artifactSetConverter, fileOperations, fileFactory, patternSetFactory)
+        fileCollectionTypes(directoryFileTreeFactory, fileCollectionFactory, artifactSetConverter, fileOperations, fileFactory, patternSetFactory, fileLookup)
 
         bind(TaskInAnotherBuildCodec(includedTaskGraph))
 
@@ -377,8 +378,10 @@ class Codecs(
         artifactSetConverter: ArtifactSetToFileCollectionFactory,
         fileOperations: FileOperations,
         fileFactory: FileFactory,
-        patternSetFactory: Factory<PatternSet>
+        patternSetFactory: Factory<PatternSet>,
+        fileLookup: FileLookup
     ) {
+        bind(PathToFileResolverCodec(fileLookup))
         bind(DirectoryCodec(fileFactory))
         bind(RegularFileCodec(fileFactory))
         bind(ConfigurableFileTreeCodec(fileCollectionFactory))

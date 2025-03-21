@@ -17,6 +17,7 @@ package org.gradle.api
 
 import org.gradle.integtests.fixtures.AbstractIntegrationSpec
 import org.gradle.integtests.fixtures.ToBeFixedForConfigurationCache
+import org.gradle.integtests.fixtures.executer.GradleContextualExecuter
 import org.gradle.test.precondition.Requires
 import org.gradle.test.preconditions.IntegTestPreconditions
 import spock.lang.Issue
@@ -130,7 +131,7 @@ class ConventionBean {
 }
 '''
 
-        expectConventionTypeDeprecationWarnings()
+        expectConventionTypeDeprecationWarnings(GradleContextualExecuter.isolatedProjects ? 2 : 1)
 
         expect:
         succeeds()
@@ -382,12 +383,12 @@ assert 'overridden value' == global
 '''
 
         executer.expectDocumentedDeprecationWarning(
-            "Space-assignment syntax in Groovy DSL has been deprecated. " +
+            "Properties should be assigned using the 'propName = value' syntax. Setting a property via the Gradle-generated 'propName value' or 'propName(value)' syntax in Groovy DSL has been deprecated. " +
                 "This is scheduled to be removed in Gradle 10.0. Use assignment ('description = <value>') instead. " +
                 "Consult the upgrading guide for further information: https://docs.gradle.org/current/userguide/upgrading_version_8.html#groovy_space_assignment_syntax"
         )
         executer.expectDocumentedDeprecationWarning(
-            "Space-assignment syntax in Groovy DSL has been deprecated. " +
+            "Properties should be assigned using the 'propName = value' syntax. Setting a property via the Gradle-generated 'propName value' or 'propName(value)' syntax in Groovy DSL has been deprecated. " +
                 "This is scheduled to be removed in Gradle 10.0. Use assignment ('prop = <value>') instead. " +
                 "Consult the upgrading guide for further information: https://docs.gradle.org/current/userguide/upgrading_version_8.html#groovy_space_assignment_syntax"
         )
@@ -927,7 +928,7 @@ task print(type: MyTask) {
             }
         """
 
-        expectConventionTypeDeprecationWarnings(4)
+        expectConventionTypeDeprecationWarnings(GradleContextualExecuter.isolatedProjects ? 8 : 4)
 
         expect:
         succeeds()

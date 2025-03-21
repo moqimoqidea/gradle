@@ -40,8 +40,8 @@ import org.gradle.internal.component.model.DefaultComponentOverrideMetadata;
 import org.gradle.internal.resolve.ModuleVersionResolveException;
 import org.gradle.internal.resolve.resolver.ComponentMetaDataResolver;
 import org.gradle.internal.resolve.result.DefaultBuildableComponentResolveResult;
+import org.jspecify.annotations.Nullable;
 
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
@@ -320,16 +320,6 @@ public class ComponentState implements ComponentResolutionState, DependencyGraph
             }
         }
         return incoming;
-    }
-
-    @Override
-    public Collection<? extends ModuleVersionIdentifier> getAllVersions() {
-        Collection<ComponentState> moduleVersions = module.getAllVersions();
-        List<ModuleVersionIdentifier> out = new ArrayList<>(moduleVersions.size());
-        for (ComponentState moduleVersion : moduleVersions) {
-            out.add(moduleVersion.id);
-        }
-        return out;
     }
 
     public boolean isSelected() {

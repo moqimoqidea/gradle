@@ -27,6 +27,7 @@ dependencies {
 
     compileOnly(libs.slf4jApi)
     compileOnly(libs.inject)
+    compileOnly(libs.jspecify)
 
     api(libs.kotlinStdlib)
 
@@ -88,7 +89,4 @@ pluginPublish {
         pluginId = "org.gradle.kotlin.kotlin-dsl.precompiled-script-plugins",
         pluginClass = "org.gradle.kotlin.dsl.plugins.precompiled.PrecompiledScriptPlugins"
     )
-}
-tasks.isolatedProjectsIntegTest {
-    enabled = false
 }

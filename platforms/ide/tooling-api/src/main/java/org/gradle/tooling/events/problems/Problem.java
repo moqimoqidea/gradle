@@ -17,10 +17,11 @@
 package org.gradle.tooling.events.problems;
 
 
+import org.gradle.api.Action;
 import org.gradle.api.Incubating;
 import org.gradle.tooling.Failure;
+import org.jspecify.annotations.Nullable;
 
-import javax.annotation.Nullable;
 import java.util.List;
 
 /**
@@ -94,6 +95,14 @@ public interface Problem {
 
     /**
      * Returns the additional data associated with this problem.
+     *
+     * There are 2 possible types for additional data:
+     * <ul>
+     *     <li>{@link CustomAdditionalData} - custom additional data attached to a problem by using {@link org.gradle.api.problems.ProblemSpec#additionalData(Class, Action)}.
+     *     <li>{@link AdditionalData} - additional data attached to the problem.
+     * </ul>
+     *
+     * to determine the type of additional data {@code instanceof} can be used.
      *
      * @return the additional data
      * @since 8.12

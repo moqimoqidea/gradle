@@ -16,13 +16,11 @@
 
 package org.gradle.api.problems.internal;
 
-import org.gradle.api.problems.Problem;
 import org.gradle.internal.operations.OperationIdentifier;
 import org.gradle.internal.service.scopes.Scope;
 import org.gradle.internal.service.scopes.ServiceScope;
 import org.gradle.problems.buildtree.ProblemReporter;
-
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 @ServiceScope(Scope.BuildTree.class)
 public interface ProblemSummarizer extends ProblemReporter {
@@ -33,5 +31,5 @@ public interface ProblemSummarizer extends ProblemReporter {
      *
      * @param problem The problem to emit.
      */
-    void emit(Problem problem, @Nullable OperationIdentifier id);
+    void emit(InternalProblem problem, @Nullable OperationIdentifier id);
 }
