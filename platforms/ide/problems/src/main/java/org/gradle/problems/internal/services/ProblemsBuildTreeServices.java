@@ -22,25 +22,33 @@ import org.gradle.api.internal.file.temp.TemporaryFileProvider;
 import org.gradle.api.problems.internal.DefaultProblems;
 import org.gradle.api.problems.internal.ExceptionProblemRegistry;
 import org.gradle.api.problems.internal.InternalProblems;
+import org.gradle.api.problems.internal.IsolatableToBytesSerializer;
 import org.gradle.api.problems.internal.ProblemEmitter;
 import org.gradle.api.problems.internal.ProblemReportCreator;
 import org.gradle.api.problems.internal.ProblemSummarizer;
+import org.gradle.api.problems.internal.ProblemTaskIdentityTracker;
+import org.gradle.api.problems.internal.TaskIdentity;
 import org.gradle.internal.buildoption.InternalOptions;
 import org.gradle.internal.cc.impl.problems.BuildNameProvider;
 import org.gradle.internal.concurrent.ExecutorFactory;
 import org.gradle.internal.event.ListenerManager;
 import org.gradle.internal.exception.ExceptionAnalyser;
+import org.gradle.internal.execution.WorkExecutionTracker;
+import org.gradle.internal.instantiation.InstantiatorFactory;
+import org.gradle.internal.isolation.IsolatableFactory;
 import org.gradle.internal.operations.BuildOperationProgressEventEmitter;
 import org.gradle.internal.operations.CurrentBuildOperationRef;
 import org.gradle.internal.problems.failure.FailureFactory;
 import org.gradle.internal.service.Provides;
 import org.gradle.internal.service.ServiceRegistrationProvider;
+import org.gradle.internal.service.ServiceRegistry;
 import org.gradle.internal.service.scopes.Scope;
 import org.gradle.internal.service.scopes.ServiceScope;
 import org.gradle.problems.buildtree.ProblemStream;
 import org.gradle.problems.internal.NoOpProblemReportCreator;
 import org.gradle.problems.internal.emitters.BuildOperationBasedProblemEmitter;
 import org.gradle.problems.internal.impl.DefaultProblemsReportCreator;
+import org.gradle.tooling.internal.provider.serialization.PayloadSerializer;
 
 import java.util.Collection;
 
@@ -51,15 +59,23 @@ public class ProblemsBuildTreeServices implements ServiceRegistrationProvider {
         ProblemSummarizer problemSummarizer,
         ProblemStream problemStream,
         ExceptionProblemRegistry exceptionProblemRegistry,
-        ExceptionAnalyser exceptionAnalyser
+        ExceptionAnalyser exceptionAnalyser,
+        InstantiatorFactory instantiatorFactory,
+        PayloadSerializer payloadSerializer,
+        IsolatableFactory isolatableFactory,
+        IsolatableToBytesSerializer isolatableToBytesSerializer,
+        ServiceRegistry serviceRegistry
     ) {
         return new DefaultProblems(
             problemSummarizer,
             problemStream,
             CurrentBuildOperationRef.instance(),
             exceptionProblemRegistry,
-            exceptionAnalyser
-        );
+            exceptionAnalyser,
+            instantiatorFactory.decorateLenient(serviceRegistry),
+            payloadSerializer,
+            isolatableFactory,
+            isolatableToBytesSerializer);
     }
 
     @Provides
@@ -68,13 +84,26 @@ public class ProblemsBuildTreeServices implements ServiceRegistrationProvider {
         CurrentBuildOperationRef currentBuildOperationRef,
         Collection<ProblemEmitter> problemEmitters,
         InternalOptions internalOptions,
-        ProblemReportCreator problemReportCreator
+        ProblemReportCreator problemReportCreator,
+        WorkExecutionTracker workExecutionTracker
     ) {
         return new DefaultProblemSummarizer(eventEmitter,
             currentBuildOperationRef,
             ImmutableList.of(new BuildOperationBasedProblemEmitter(eventEmitter)),
             internalOptions,
-            problemReportCreator);
+            problemReportCreator,
+            id -> {
+                TaskIdentity taskIdentity = ProblemTaskIdentityTracker.getTaskIdentity();
+                if (taskIdentity != null) {
+                    return taskIdentity;
+                } else {
+                    return workExecutionTracker
+                        .getCurrentTask(id)
+                        .map(task -> new TaskIdentity(task.getTaskIdentity().getBuildPath(), task.getTaskIdentity().getTaskPath()))
+                        .orElse(null);
+                }
+            }
+        );
     }
 
     @Provides

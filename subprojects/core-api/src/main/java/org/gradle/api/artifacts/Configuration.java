@@ -29,8 +29,8 @@ import org.gradle.api.specs.Spec;
 import org.gradle.api.tasks.TaskDependency;
 import org.gradle.internal.HasInternalProtocol;
 import org.gradle.internal.deprecation.DeprecationLogger;
+import org.jspecify.annotations.Nullable;
 
-import javax.annotation.Nullable;
 import java.io.File;
 import java.util.Map;
 import java.util.Set;
@@ -341,16 +341,6 @@ public interface Configuration extends FileCollection, HasConfigurableAttributes
      * @return The ResolvedConfiguration object
      */
     ResolvedConfiguration getResolvedConfiguration();
-
-    /**
-     * Returns the name of the task that upload the artifacts of this configuration to repositories
-     * declared by the user.
-     *
-     * @return The name of the associated upload task
-     * @see org.gradle.api.tasks.Upload
-     */
-    @Deprecated // TODO:Finalize Upload Removal - Issue #21439
-    String getUploadTaskName();
 
     /**
      * Returns a {@code TaskDependency} object containing all required dependencies to build the local dependencies

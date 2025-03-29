@@ -24,9 +24,8 @@ dependencies {
     api(projects.serviceProvider)
     api(projects.stdlibJavaExtensions)
 
-    api(libs.groovy)
     api(libs.inject)
-    api(libs.jsr305)
+    api(libs.jspecify)
 
     implementation(projects.serviceLookup)
     implementation(projects.baseServicesGroovy) {
@@ -37,6 +36,7 @@ dependencies {
     implementation(libs.commonsLang)
     implementation(libs.gson)
     implementation(libs.guava)
+    implementation(libs.jsr305)
 
     testImplementation(testFixtures(projects.core))
 
