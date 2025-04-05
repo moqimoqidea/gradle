@@ -40,9 +40,9 @@ import org.gradle.api.internal.catalog.problems.VersionCatalogProblemId;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.model.ObjectFactory;
-import org.gradle.api.problems.Problem;
 import org.gradle.api.problems.ProblemSpec;
 import org.gradle.api.problems.internal.GradleCoreProblemGroup;
+import org.gradle.api.problems.internal.InternalProblem;
 import org.gradle.api.problems.internal.InternalProblemSpec;
 import org.gradle.api.problems.internal.InternalProblems;
 import org.gradle.api.provider.Property;
@@ -51,9 +51,9 @@ import org.gradle.internal.classpath.Instrumented;
 import org.gradle.internal.lazy.Lazy;
 import org.gradle.internal.management.VersionCatalogBuilderInternal;
 import org.gradle.util.internal.TextUtil;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import javax.inject.Inject;
 import java.io.File;
 import java.io.IOException;
@@ -221,11 +221,11 @@ public abstract class DefaultVersionCatalogBuilder implements VersionCatalogBuil
             .severity(ERROR);
     }
 
-    private static RuntimeException throwVersionCatalogProblemException(InternalProblems problemsService, Problem problem) {
+    private static RuntimeException throwVersionCatalogProblemException(InternalProblems problemsService, InternalProblem problem) {
         throw throwError(problemsService, "Invalid catalog definition", ImmutableList.of(problem));
     }
 
-    @Nonnull
+    @NonNull
     private String getProblemInVersionCatalog() {
         return DefaultCatalogProblemBuilder.getProblemInVersionCatalog(name) + ", ";
     }
@@ -408,7 +408,7 @@ public abstract class DefaultVersionCatalogBuilder implements VersionCatalogBuil
         }
     }
 
-    @Nonnull
+    @NonNull
     private RuntimeException throwAliasCatalogException(String alias, Collection<String> reservedNames) {
         throw throwVersionCatalogProblemException(getProblemsService(), getProblemsService().getInternalReporter().internalCreate(builder ->
             configureVersionCatalogError(builder, getProblemInVersionCatalog() + "alias '" + alias + "' is not a valid alias.", RESERVED_ALIAS_NAME)
@@ -416,7 +416,7 @@ public abstract class DefaultVersionCatalogBuilder implements VersionCatalogBuil
                 .solution("Use a different alias which doesn't contain " + getExcludedNames(reservedNames) + ".")));
     }
 
-    @Nonnull
+    @NonNull
     public static String getExcludedNames(Collection<String> reservedNames) {
         String namesOrName = quotedOxfordListOf(reservedNames, "or");
         if (reservedNames.size() == 1) {

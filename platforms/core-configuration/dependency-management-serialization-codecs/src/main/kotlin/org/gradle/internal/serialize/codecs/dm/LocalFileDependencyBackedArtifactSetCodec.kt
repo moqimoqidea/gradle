@@ -341,11 +341,11 @@ class FixedFileMetadata(
 
 private
 object EmptyVariantTransformRegistry : VariantTransformRegistry {
-    override fun <T : TransformParameters?> registerTransform(actionType: Class<out TransformAction<T>>, registrationAction: Action<in org.gradle.api.artifacts.transform.TransformSpec<T>>) {
+    override fun <T : TransformParameters> registerTransform(actionType: Class<out TransformAction<T>>, registrationAction: Action<in org.gradle.api.artifacts.transform.TransformSpec<T>>) {
         throw UnsupportedOperationException("Should not be called")
     }
 
-    override fun getRegistrations(): MutableList<TransformRegistration> {
-        throw UnsupportedOperationException("Should not be called")
+    override fun getRegistrations(): Set<TransformRegistration> {
+        return emptySet()
     }
 }

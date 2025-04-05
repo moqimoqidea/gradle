@@ -19,8 +19,8 @@ package org.gradle.internal.extensibility;
 import org.gradle.api.plugins.ExtraPropertiesExtension;
 import org.gradle.internal.metaobject.AbstractDynamicObject;
 import org.gradle.internal.metaobject.DynamicInvokeResult;
+import org.jspecify.annotations.Nullable;
 
-import javax.annotation.Nullable;
 import java.util.Map;
 
 public class ExtraPropertiesDynamicObjectAdapter extends AbstractDynamicObject {
@@ -62,5 +62,10 @@ public class ExtraPropertiesDynamicObjectAdapter extends AbstractDynamicObject {
             return DynamicInvokeResult.found();
         }
         return DynamicInvokeResult.notFound();
+    }
+
+    @Override
+    public DynamicInvokeResult trySetPropertyWithoutInstrumentation(String name, @Nullable Object value) {
+        return trySetProperty(name, value);
     }
 }

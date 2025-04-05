@@ -38,8 +38,8 @@ import org.gradle.internal.Cast;
 import org.gradle.internal.UncheckedException;
 import org.gradle.internal.reflect.JavaPropertyReflectionUtil;
 import org.gradle.internal.state.ModelObject;
+import org.jspecify.annotations.Nullable;
 
-import javax.annotation.Nullable;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
@@ -201,6 +201,11 @@ public class BeanDynamicObject extends AbstractDynamicObject {
     @Override
     public DynamicInvokeResult trySetProperty(String name, @Nullable Object value) {
         return delegate.setProperty(name, value);
+    }
+
+    @Override
+    public DynamicInvokeResult trySetPropertyWithoutInstrumentation(String name, @Nullable Object value) {
+        return delegate.setPropertyWithoutInstrumentation(name, value);
     }
 
     @Override
@@ -394,6 +399,23 @@ public class BeanDynamicObject extends AbstractDynamicObject {
 
             MetaClass metaClass = getMetaClass();
             MetaProperty property = lookupProperty(metaClass, name);
+            return setProperty(metaClass, name, property, value);
+        }
+
+        public DynamicInvokeResult setPropertyWithoutInstrumentation(final String name, @Nullable Object value) {
+            if (!includeProperties) {
+                return DynamicInvokeResult.notFound();
+            }
+
+            MetaClass metaClass = getMetaClass();
+            MetaProperty property = lookupProperty(metaClass, name);
+            if (property instanceof InterceptedMetaProperty) {
+                property = ((InterceptedMetaProperty) property).getOriginal();
+            }
+            return setProperty(metaClass, name, property, value);
+        }
+
+        private DynamicInvokeResult setProperty(final MetaClass metaClass, final String name, @Nullable MetaProperty property, @Nullable Object value) {
             if (property != null) {
                 if (property instanceof MultipleSetterProperty) {
                     // Invoke the setter method, to pick up type coercion
@@ -406,9 +428,11 @@ public class BeanDynamicObject extends AbstractDynamicObject {
                     if (property instanceof MetaBeanProperty) {
                         MetaBeanProperty metaBeanProperty = (MetaBeanProperty) property;
                         if (metaBeanProperty.getSetter() == null) {
-                            if (metaBeanProperty.getField() == null) {
+                            if (metaBeanProperty.getField() == null || metaBeanProperty.getField().isFinal()) {
+                                // Set Property/ConfigurableFileCollection types via setFromAnyValue
                                 trySetGetterOnlyProperty(name, value, metaBeanProperty);
                             } else {
+                                // Set the field directly
                                 value = propertySetTransformer.transformValue(metaBeanProperty.getField().getType(), value);
                                 metaBeanProperty.getField().setProperty(bean, value);
                             }

@@ -68,7 +68,6 @@ import org.gradle.api.internal.catalog.DependenciesAccessorsWorkspaceProvider;
 import org.gradle.api.internal.file.FileCollectionFactory;
 import org.gradle.api.internal.file.temp.TemporaryFileProvider;
 import org.gradle.api.internal.model.NamedObjectInstantiator;
-import org.gradle.api.internal.notations.ClientModuleNotationParserFactory;
 import org.gradle.api.internal.notations.DependencyConstraintNotationParser;
 import org.gradle.api.internal.notations.DependencyNotationParser;
 import org.gradle.api.internal.notations.ProjectDependencyFactory;
@@ -100,7 +99,6 @@ import org.gradle.internal.hash.FileHasher;
 import org.gradle.internal.logging.progress.ProgressLoggerFactory;
 import org.gradle.internal.management.DefaultDependencyResolutionManagement;
 import org.gradle.internal.management.DependencyResolutionManagementInternal;
-import org.gradle.internal.model.BuildTreeObjectFactory;
 import org.gradle.internal.operations.BuildOperationExecutor;
 import org.gradle.internal.operations.BuildOperationRunner;
 import org.gradle.internal.reflect.Instantiator;
@@ -210,12 +208,23 @@ class DependencyManagementBuildScopeServices implements ServiceRegistrationProvi
     ) {
         ProjectDependencyFactory projectDependencyFactory = new ProjectDependencyFactory(factory);
 
+        DependencyNotationParser dependencyNotationParser = DependencyNotationParser.create(
+            instantiator,
+            factory,
+            classPathRegistry,
+            fileCollectionFactory,
+            runtimeShadedJarFactory,
+            stringInterner
+        );
+
         return new DefaultDependencyFactory(
             instantiator,
-            DependencyNotationParser.create(instantiator, factory, classPathRegistry, fileCollectionFactory, runtimeShadedJarFactory, stringInterner),
-            new ClientModuleNotationParserFactory(instantiator, stringInterner).create(),
-            capabilityNotationParser, objectFactory, projectDependencyFactory,
-            attributesFactory);
+            dependencyNotationParser,
+            capabilityNotationParser,
+            objectFactory,
+            projectDependencyFactory,
+            attributesFactory
+        );
     }
 
     @Provides
@@ -401,7 +410,7 @@ class DependencyManagementBuildScopeServices implements ServiceRegistrationProvi
 
     @Provides
     DependenciesAccessors createDependenciesAccessorGenerator(
-        BuildTreeObjectFactory objectFactory,
+        ObjectFactory objectFactory,
         ClassPathRegistry registry,
         DependenciesAccessorsWorkspaceProvider workspace,
         DefaultProjectDependencyFactory factory,

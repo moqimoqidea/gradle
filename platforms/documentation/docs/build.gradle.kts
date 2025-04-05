@@ -77,6 +77,12 @@ dependencies {
     integTestDistributionRuntimeOnly(project(":distributions-full"))
 }
 
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
 asciidoctorj {
     setVersion("2.5.13")
     modules.pdf.setVersion("2.3.10")
@@ -654,19 +660,20 @@ tasks.named<Test>("docsTest") {
         }
 
         if (!javaVersion.isJava11Compatible) {
-            // Android requires Java 11+
-            excludeTestsMatching("org.gradle.docs.samples.*.building-android-*.sample")
-            excludeTestsMatching("org.gradle.docs.samples.*.snippet-kotlin-dsl-android-build_*.sample")
-            excludeTestsMatching("org.gradle.docs.samples.*.snippet-kotlin-dsl-android-single-build_*.sample")
-            excludeTestsMatching("org.gradle.docs.samples.*.structuring-software-projects*android-app.sample")
-            // Umbrella build project contains also Android projects so it requires Java 11+
-            excludeTestsMatching("org.gradle.docs.samples.*.structuring-software-projects_*_umbrella-build.sample")
             // This test sets source and target compatibility to 11
             excludeTestsMatching("org.gradle.docs.samples.*.snippet-kotlin-dsl-accessors_*.sample")
         }
 
         if (javaVersion.isCompatibleWith(JavaVersion.VERSION_12)) {
             excludeTestsMatching("org.gradle.docs.samples.*.snippet-test-kit-gradle-version_*_testKitFunctionalTestSpockGradleDistribution.sample")
+        }
+
+        if (!javaVersion.isCompatibleWith(JavaVersion.VERSION_17)) {
+            // Android requires Java 17+
+            excludeTestsMatching("org.gradle.docs.samples.*.building-android-*.sample")
+            excludeTestsMatching("org.gradle.docs.samples.*.structuring-software-projects*android-app.sample")
+            // Umbrella build project also contains Android projects
+            excludeTestsMatching("org.gradle.docs.samples.*.structuring-software-projects_*_umbrella-build.sample")
         }
 
         if (!javaVersion.isCompatibleWith(JavaVersion.VERSION_21)) {
@@ -687,6 +694,12 @@ tasks.named<Test>("docsTest") {
             excludeTestsMatching("org.gradle.docs.samples.*.incubating-publishing-convention-plugins*")
             // PMD doesn't support Java 23
             excludeTestsMatching("org.gradle.docs.samples.*.snippet-code-quality-code-quality*")
+        }
+
+        if (javaVersion.isCompatibleWith(JavaVersion.VERSION_24)) {
+            // JaCoCo doesn't yet support Java 24 (need 0.8.13)
+            excludeTestsMatching("org.gradle.docs.samples.*.jvm-multi-project-with-code-coverage*")
+            excludeTestsMatching("org.gradle.docs.samples.*.snippet-testing-jacoco*")
         }
 
         if (OperatingSystem.current().isMacOsX && System.getProperty("os.arch") == "aarch64") {

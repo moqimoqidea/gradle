@@ -17,7 +17,6 @@
 package org.gradle.internal.build.event.types;
 
 import com.google.common.collect.ImmutableList;
-import org.gradle.api.NonNullApi;
 import org.gradle.tooling.internal.protocol.InternalBasicProblemDetailsVersion3;
 import org.gradle.tooling.internal.protocol.InternalBasicProblemDetailsVersion4;
 import org.gradle.tooling.internal.protocol.InternalFailure;
@@ -27,12 +26,13 @@ import org.gradle.tooling.internal.protocol.problem.InternalContextualLabel;
 import org.gradle.tooling.internal.protocol.problem.InternalDetails;
 import org.gradle.tooling.internal.protocol.problem.InternalLocation;
 import org.gradle.tooling.internal.protocol.problem.InternalSolution;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
-import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.List;
 
-@NonNullApi
+@NullMarked
 public class DefaultProblemDetails implements InternalBasicProblemDetailsVersion3, InternalBasicProblemDetailsVersion4, Serializable {
     private final InternalProblemDefinition definition;
     private final InternalDetails details;
@@ -41,7 +41,7 @@ public class DefaultProblemDetails implements InternalBasicProblemDetailsVersion
     private final List<InternalLocation> originLocations;
     private final List<InternalLocation> contextualLocations;
     private final List<InternalSolution> solutions;
-    private final InternalAdditionalData additionalData;
+    private InternalAdditionalData additionalData;
     private final InternalFailure failure;
 
     public DefaultProblemDetails(
@@ -115,4 +115,9 @@ public class DefaultProblemDetails implements InternalBasicProblemDetailsVersion
     public InternalAdditionalData getAdditionalData() {
         return additionalData;
     }
+
+    public void setAdditionalData(InternalAdditionalData additionalData) {
+        this.additionalData = additionalData;
+    }
+
 }

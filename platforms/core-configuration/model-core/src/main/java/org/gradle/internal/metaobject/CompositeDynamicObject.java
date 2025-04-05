@@ -15,7 +15,8 @@
  */
 package org.gradle.internal.metaobject;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -65,6 +66,17 @@ public abstract class CompositeDynamicObject extends AbstractDynamicObject {
     public DynamicInvokeResult trySetProperty(String name, @Nullable Object value) {
         for (DynamicObject object : updateObjects) {
             DynamicInvokeResult result = object.trySetProperty(name, value);
+            if (result.isFound()) {
+                return result;
+            }
+        }
+        return DynamicInvokeResult.notFound();
+    }
+
+    @Override
+    public DynamicInvokeResult trySetPropertyWithoutInstrumentation(String name, @Nullable Object value) {
+        for (DynamicObject object : updateObjects) {
+            DynamicInvokeResult result = object.trySetPropertyWithoutInstrumentation(name, value);
             if (result.isFound()) {
                 return result;
             }

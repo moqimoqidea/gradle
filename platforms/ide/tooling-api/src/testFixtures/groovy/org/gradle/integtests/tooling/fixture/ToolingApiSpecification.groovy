@@ -71,8 +71,8 @@ import static spock.lang.Retry.Mode.SETUP_FEATURE_CLEANUP
  */
 @ToolingApiTest
 @CleanupTestDirectory
-@ToolingApiVersion('>=7.0')
-@TargetGradleVersion('>=3.0')
+@ToolingApiVersion('>=8.0')
+@TargetGradleVersion('>=4.0')
 @Retry(condition = { onIssueWithReleasedGradleVersion(instance, failure) }, mode = SETUP_FEATURE_CLEANUP, count = 2)
 abstract class ToolingApiSpecification extends Specification implements KotlinDslTestProjectInitiation {
     /**
@@ -321,7 +321,9 @@ abstract class ToolingApiSpecification extends Specification implements KotlinDs
      * Returns the set of implicit task names expected for any project for the target Gradle version.
      */
     Set<String> getImplicitTasks() {
-        if (targetVersion >= GradleVersion.version("7.5")) {
+        if (targetVersion >= GradleVersion.version("8.13")) {
+            return ['artifactTransforms', 'buildEnvironment', 'components', 'dependencies', 'dependencyInsight', 'dependentComponents', 'help', 'javaToolchains', 'projects', 'properties', 'tasks', 'model', 'outgoingVariants', 'resolvableConfigurations']
+        } else if (targetVersion >= GradleVersion.version("7.5")) {
             return ['buildEnvironment', 'components', 'dependencies', 'dependencyInsight', 'dependentComponents', 'help', 'javaToolchains', 'projects', 'properties', 'tasks', 'model', 'outgoingVariants', 'resolvableConfigurations']
         } else if (targetVersion >= GradleVersion.version("6.8")) {
             return ['buildEnvironment', 'components', 'dependencies', 'dependencyInsight', 'dependentComponents', 'help', 'javaToolchains', 'projects', 'properties', 'tasks', 'model', 'outgoingVariants']

@@ -23,33 +23,29 @@ import org.gradle.api.problems.ProblemSpec;
 import org.gradle.internal.exception.ExceptionAnalyser;
 import org.gradle.internal.operations.CurrentBuildOperationRef;
 import org.gradle.internal.operations.OperationIdentifier;
-import org.gradle.problems.buildtree.ProblemStream;
+import org.jspecify.annotations.NonNull;
 
-import javax.annotation.Nonnull;
 import java.util.Collection;
 
 public class DefaultProblemReporter implements InternalProblemReporter {
 
     private final ProblemSummarizer problemSummarizer;
-    private final ProblemStream problemStream;
+    private final ProblemsInfrastructure infrastructure;
     private final CurrentBuildOperationRef currentBuildOperationRef;
     private final ExceptionProblemRegistry exceptionProblemRegistry;
-    private final AdditionalDataBuilderFactory additionalDataBuilderFactory;
     private final ExceptionAnalyser exceptionAnalyser;
 
     public DefaultProblemReporter(
         ProblemSummarizer problemSummarizer,
-        ProblemStream problemStream,
         CurrentBuildOperationRef currentBuildOperationRef,
-        AdditionalDataBuilderFactory additionalDataBuilderFactory,
         ExceptionProblemRegistry exceptionProblemRegistry,
-        ExceptionAnalyser exceptionAnalyser
+        ExceptionAnalyser exceptionAnalyser,
+        ProblemsInfrastructure infrastructure
     ) {
         this.problemSummarizer = problemSummarizer;
-        this.problemStream = problemStream;
+        this.infrastructure = infrastructure;
         this.currentBuildOperationRef = currentBuildOperationRef;
         this.exceptionProblemRegistry = exceptionProblemRegistry;
-        this.additionalDataBuilderFactory = additionalDataBuilderFactory;
         this.exceptionAnalyser = exceptionAnalyser;
     }
 
@@ -61,9 +57,9 @@ public class DefaultProblemReporter implements InternalProblemReporter {
         report(problemBuilder.build());
     }
 
-    @Nonnull
+    @NonNull
     private DefaultProblemBuilder createProblemBuilder() {
-        return new DefaultProblemBuilder(problemStream, additionalDataBuilderFactory);
+        return new DefaultProblemBuilder(infrastructure);
     }
 
     @Override
@@ -78,7 +74,7 @@ public class DefaultProblemReporter implements InternalProblemReporter {
 
     @Override
     public RuntimeException throwing(Throwable exception, Problem problem) {
-        problem = ((InternalProblem) problem).toBuilder(additionalDataBuilderFactory).withException(transform(exception)).build();
+        problem = addExceptionToProblem(exception, problem);
         report(problem);
         throw runtimeException(exception);
     }
@@ -86,9 +82,14 @@ public class DefaultProblemReporter implements InternalProblemReporter {
     @Override
     public RuntimeException throwing(Throwable exception, Collection<? extends Problem> problems) {
         for (Problem problem : problems) {
-            report(((InternalProblem) problem).toBuilder(additionalDataBuilderFactory).withException(transform(exception)).build());
+            report(addExceptionToProblem(exception, problem));
         }
         throw runtimeException(exception);
+    }
+
+    @NonNull
+    private InternalProblem addExceptionToProblem(Throwable exception, Problem problem) {
+        return getBuilder(problem).withException(transform(exception)).build();
     }
 
     private static RuntimeException runtimeException(Throwable exception) {
@@ -108,7 +109,7 @@ public class DefaultProblemReporter implements InternalProblemReporter {
     }
 
     @Override
-    public Problem internalCreate(Action<? super InternalProblemSpec> action) {
+    public InternalProblem internalCreate(Action<? super InternalProblemSpec> action) {
         DefaultProblemBuilder defaultProblemBuilder = createProblemBuilder();
         action.execute(defaultProblemBuilder);
         return defaultProblemBuilder.build();
@@ -148,13 +149,17 @@ public class DefaultProblemReporter implements InternalProblemReporter {
      */
     @Override
     public void report(Problem problem, OperationIdentifier id) {
-        String taskPath = ProblemTaskPathTracker.getTaskIdentityPath();
-        problem = taskPath == null ? problem : ((InternalProblem) problem).toBuilder(additionalDataBuilderFactory).taskPathLocation(taskPath).build();
-        Throwable exception = problem.getException();
+        InternalProblem internalProblem = (InternalProblem) problem;
+        Throwable exception = internalProblem.getException();
         if (exception != null) {
-            exceptionProblemRegistry.onProblem(transform(exception), problem);
+            exceptionProblemRegistry.onProblem(transform(exception), internalProblem);
         }
-        problemSummarizer.emit(problem, id);
+        problemSummarizer.emit(internalProblem, id);
+    }
+
+    @NonNull
+    private InternalProblemBuilder getBuilder(Problem problem) {
+        return ((InternalProblem) problem).toBuilder(infrastructure);
     }
 
     private Throwable transform(Throwable failure) {

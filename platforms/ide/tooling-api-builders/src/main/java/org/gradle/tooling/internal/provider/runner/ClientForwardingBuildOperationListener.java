@@ -17,7 +17,6 @@
 package org.gradle.tooling.internal.provider.runner;
 
 import com.google.common.collect.ImmutableList;
-import org.gradle.api.NonNullApi;
 import org.gradle.api.problems.internal.DefaultProblemProgressDetails;
 import org.gradle.api.problems.internal.DefaultProblemsSummaryProgressDetails;
 import org.gradle.api.problems.internal.ProblemLocator;
@@ -39,8 +38,9 @@ import org.gradle.internal.operations.OperationStartEvent;
 import org.gradle.launcher.exec.RunBuildBuildOperationType;
 import org.gradle.tooling.events.OperationType;
 import org.gradle.tooling.internal.protocol.InternalFailure;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
-import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.function.Supplier;
 
@@ -52,7 +52,7 @@ import static org.gradle.tooling.internal.provider.runner.ProblemsProgressEventU
  *
  * @since 2.5
  */
-@NonNullApi
+@NullMarked
 class ClientForwardingBuildOperationListener implements BuildOperationListener {
 
     protected final ProgressEventConsumer eventConsumer;
@@ -106,7 +106,7 @@ class ClientForwardingBuildOperationListener implements BuildOperationListener {
         // RunBuildBuildOperationType.Details is the type of the details object associated with the root build operation
         if (rootRequested && buildOperation.getDetails() instanceof RunBuildBuildOperationType.Details) {
             ProblemLocator problemLocator = ((RunBuildBuildOperationType.Details) buildOperation.getDetails()).getProblemLookup();
-            eventConsumer.finished(new DefaultOperationFinishedProgressEvent(result.getEndTime(), createRootOperationDescriptor(buildOperation), ClientForwardingBuildOperationListener.toOperationResult(result, problemLocator)));
+            eventConsumer.finished(new DefaultOperationFinishedProgressEvent(result.getEndTime(), createRootOperationDescriptor(buildOperation), toOperationResult(result, problemLocator)));
         } else if (genericRequested) {
             eventConsumer.finished(new DefaultOperationFinishedProgressEvent(result.getEndTime(), toBuildOperationDescriptor(buildOperation), toOperationResult(result)));
         }

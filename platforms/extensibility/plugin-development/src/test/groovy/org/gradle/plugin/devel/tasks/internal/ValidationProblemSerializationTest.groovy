@@ -17,7 +17,6 @@
 package org.gradle.plugin.devel.tasks.internal
 
 import com.google.gson.Gson
-import org.gradle.api.problems.GeneralData
 import org.gradle.api.problems.ProblemId
 import org.gradle.api.problems.Severity
 import org.gradle.api.problems.internal.AdditionalDataBuilderFactory
@@ -25,15 +24,21 @@ import org.gradle.api.problems.internal.DefaultProblemReporter
 import org.gradle.api.problems.internal.DeprecationData
 import org.gradle.api.problems.internal.DeprecationDataSpec
 import org.gradle.api.problems.internal.ExceptionProblemRegistry
+import org.gradle.api.problems.internal.GeneralData
 import org.gradle.api.problems.internal.GeneralDataSpec
 import org.gradle.api.problems.internal.GradleCoreProblemGroup
 import org.gradle.api.problems.internal.InternalDocLink
 import org.gradle.api.problems.internal.InternalProblemReporter
+import org.gradle.api.problems.internal.IsolatableToBytesSerializer
 import org.gradle.api.problems.internal.ProblemSummarizer
+import org.gradle.api.problems.internal.ProblemsInfrastructure
 import org.gradle.api.problems.internal.TypeValidationData
 import org.gradle.api.problems.internal.TypeValidationDataSpec
-import org.gradle.internal.exception.ExceptionAnalyser
+import org.gradle.internal.isolation.IsolatableFactory
 import org.gradle.internal.operations.CurrentBuildOperationRef
+import org.gradle.internal.reflect.Instantiator
+import org.gradle.problems.buildtree.ProblemStream
+import org.gradle.tooling.internal.provider.serialization.PayloadSerializer
 import spock.lang.Specification
 
 class ValidationProblemSerializationTest extends Specification {
@@ -42,12 +47,18 @@ class ValidationProblemSerializationTest extends Specification {
 
     Gson gson = ValidationProblemSerialization.createGsonBuilder().create()
     InternalProblemReporter problemReporter = new DefaultProblemReporter(
-            Stub(ProblemSummarizer),
-            null,
-            CurrentBuildOperationRef.instance(),
+        Stub(ProblemSummarizer),
+        CurrentBuildOperationRef.instance(),
+        new ExceptionProblemRegistry(),
+        null,
+        new ProblemsInfrastructure(
             new AdditionalDataBuilderFactory(),
-            new ExceptionProblemRegistry(),
-            Mock(ExceptionAnalyser)
+            Mock(Instantiator),
+            Mock(PayloadSerializer),
+            Mock(IsolatableFactory),
+            Mock(IsolatableToBytesSerializer),
+            Mock(ProblemStream)
+        )
     )
 
     def "can serialize and deserialize a validation problem"() {
@@ -198,7 +209,7 @@ class ValidationProblemSerializationTest extends Specification {
         given:
         def problem = problemReporter.internalCreate {
             it.id(problemId)
-                .additionalData(TypeValidationDataSpec.class) {
+                .additionalDataInternal(TypeValidationDataSpec.class) {
                     it.propertyName("property")
                     it.typeName("type")
                     it.parentPropertyName("parent")
@@ -226,7 +237,7 @@ class ValidationProblemSerializationTest extends Specification {
         given:
         def problem = problemReporter.internalCreate {
             it.id(problemId)
-                .additionalData(GeneralDataSpec) {
+                .additionalDataInternal(GeneralDataSpec) {
                     it.put('foo', 'bar')
                 }
         }
@@ -247,7 +258,7 @@ class ValidationProblemSerializationTest extends Specification {
         given:
         def problem = problemReporter.internalCreate {
             it.id(problemId)
-                .additionalData(DeprecationDataSpec) {
+                .additionalDataInternal(DeprecationDataSpec) {
                     it.type(DeprecationData.Type.BUILD_INVOCATION)
                 }
         }

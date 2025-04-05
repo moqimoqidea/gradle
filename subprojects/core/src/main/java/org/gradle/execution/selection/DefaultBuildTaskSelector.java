@@ -39,10 +39,10 @@ import org.gradle.internal.build.IncludedBuildState;
 import org.gradle.internal.build.RootBuildState;
 import org.gradle.util.Path;
 import org.gradle.util.internal.NameMatcher;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
 import javax.inject.Inject;
 import java.io.File;
 import java.util.LinkedHashMap;
@@ -184,7 +184,7 @@ public class DefaultBuildTaskSelector implements BuildTaskSelector {
     private static void configureProblem(ProblemSpec spec, String message, String requestedPath) {
         spec.contextualLabel(message);
         spec.severity(Severity.ERROR);
-        ((InternalProblemSpec) spec).additionalData(GeneralDataSpec.class, data -> data.put("requestedPath", Objects.requireNonNull(requestedPath)));
+        ((InternalProblemSpec) spec).additionalDataInternal(GeneralDataSpec.class, data -> data.put("requestedPath", Objects.requireNonNull(requestedPath)));
     }
 
     private TaskSelector.SelectionContext sanityCheckPath(String name, String type) {

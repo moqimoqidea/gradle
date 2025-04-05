@@ -11,23 +11,21 @@ errorprone {
     disabledChecks.addAll(
         "DefaultCharset", // 6 occurrences
         "GetClassOnEnum", // 1 occurrences
-        "HidingField", // 2 occurrences
         "ImmutableEnumChecker", // 2 occurrences
-        "InconsistentCapitalization", // 1 occurrences
         "ReferenceEquality", // 1 occurrences
-        "UnusedMethod", // 1 occurrences
     )
 }
 
 dependencies {
     api(libs.inject)
-    api(libs.jsr305)
+    api(libs.jspecify)
     api(libs.maven3Settings)
 
     api(projects.baseServices)
     api(projects.buildInitSpecs)
     api(projects.core)
     api(projects.coreApi)
+    api(projects.daemonServerWorker)
     api(projects.daemonServices)
     api(projects.dependencyManagement)
     api(projects.fileCollections)
@@ -78,17 +76,6 @@ dependencies {
 
     compileOnly(projects.platformBase)
 
-    testRuntimeOnly(libs.maven3Compat)
-    testRuntimeOnly(libs.maven3PluginApi)
-
-    testImplementation(projects.cli)
-    testImplementation(projects.baseServicesGroovy)
-    testImplementation(projects.native)
-    testImplementation(projects.snapshots)
-    testImplementation(projects.processServices)
-    testImplementation(testFixtures(projects.core))
-    testImplementation(testFixtures(projects.platformNative))
-
     testFixturesImplementation(projects.baseServices)
     testFixturesImplementation(projects.platformBase)
     testFixturesImplementation(projects.coreApi)
@@ -98,14 +85,27 @@ dependencies {
     testFixturesImplementation(projects.testSuitesBase)
     testFixturesImplementation(projects.pluginsJvmTestSuite)
 
+
+    testImplementation(projects.cli)
+    testImplementation(projects.baseServicesGroovy)
+    testImplementation(projects.native)
+    testImplementation(projects.snapshots)
+    testImplementation(projects.processServices)
+    testImplementation(testFixtures(projects.core))
+    testImplementation(testFixtures(projects.platformNative))
+
+    testRuntimeOnly(libs.maven3Compat)
+    testRuntimeOnly(libs.maven3PluginApi)
+
+    testRuntimeOnly(projects.distributionsFull) {
+        because("ProjectBuilder tests load services from a Gradle distribution.  Toolchain usage requires JVM distribution.")
+    }
+
     integTestImplementation(projects.native)
     integTestImplementation(libs.jetty)
 
     integTestRuntimeOnly(libs.maven3Compat)
 
-    testRuntimeOnly(projects.distributionsJvm) {
-        because("ProjectBuilder tests load services from a Gradle distribution.  Toolchain usage requires JVM distribution.")
-    }
     integTestDistributionRuntimeOnly(projects.distributionsFull)
 }
 
