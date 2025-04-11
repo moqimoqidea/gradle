@@ -33,7 +33,5 @@ dependencies {
 
     implementation(projects.baseServices)
     implementation(projects.serviceLookup)
-}
-tasks.isolatedProjectsIntegTest {
-    enabled = false
+    implementation(projects.stdlibKotlinExtensions)
 }

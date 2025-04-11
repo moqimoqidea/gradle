@@ -47,6 +47,7 @@ errorproneExtension.disabledChecks.addAll(
     "JavaxInjectOnAbstractMethod", // We use abstract injection as a pattern
     "JavaUtilDate", // We are fine with using Date
     "StringSplitter", // We are fine with using String.split() as is
+    "InlineMeSuggester", // Only suppression seems to actually "fix" this, so make it global
 )
 
 project.plugins.withType<JavaBasePlugin> {
@@ -58,7 +59,9 @@ project.plugins.withType<JavaBasePlugin> {
 
         project.dependencies.addProvider(
             annotationProcessorConfigurationName,
-            extension.enabled.filter { it }.map { "com.google.errorprone:error_prone_core:2.29.0" }
+            // don't forget to update the version in distributions-dependencies/build.gradle.kts
+            // 2.31.0 is the latest version that works with JDK 11
+            extension.enabled.filter { it }.map { "com.google.errorprone:error_prone_core:2.31.0" }
         )
 
         project.tasks.named<JavaCompile>(this.compileJavaTaskName) {

@@ -41,6 +41,7 @@ abstract class DistributionIntegrationSpec extends AbstractIntegrationSpec {
 
     def coreLibsModules = [
         "base-asm",
+        "base-diagnostics",
         "base-services",
         "base-services-groovy",
         "build-cache",
@@ -48,6 +49,7 @@ abstract class DistributionIntegrationSpec extends AbstractIntegrationSpec {
         "build-cache-local",
         "build-cache-packaging",
         "build-cache-spi",
+        "build-configuration",
         "build-events",
         "build-init-specs",
         "build-init-specs-api",
@@ -56,6 +58,7 @@ abstract class DistributionIntegrationSpec extends AbstractIntegrationSpec {
         "build-option",
         "build-process-services",
         "build-state",
+        "classloaders",
         "cli",
         "client-services",
         "concurrent",
@@ -100,6 +103,7 @@ abstract class DistributionIntegrationSpec extends AbstractIntegrationSpec {
         "messaging",
         "model-core",
         "model-groovy",
+        "model-reflect",
         "native",
         "normalization-java",
         "persistent-cache",
@@ -108,8 +112,12 @@ abstract class DistributionIntegrationSpec extends AbstractIntegrationSpec {
         "problems-rendering",
         "process-memory-services",
         "process-services",
+        "report-rendering",
+        "request-handler-worker",
         "resources",
+        "resources-http",
         "runtime-api-info",
+        "scoped-persistent-cache",
         "serialization",
         "service-lookup",
         "service-provider",
@@ -284,7 +292,7 @@ abstract class DistributionIntegrationSpec extends AbstractIntegrationSpec {
 
         def toolingApiJar = contentsDir.file("lib/gradle-tooling-api-${baseVersion}.jar")
         toolingApiJar.assertIsFile()
-        assert toolingApiJar.length() < 500 * 1024 // tooling api jar is the small plain tooling api jar version and not the fat jar.
+        assert toolingApiJar.length() < 512 * 1024 // tooling api jar is the small plain tooling api jar version and not the fat jar.
 
         // Kotlin DSL
         assertIsGradleJar(contentsDir.file("lib/gradle-kotlin-dsl-${baseVersion}.jar"))
@@ -338,7 +346,6 @@ abstract class DistributionIntegrationSpec extends AbstractIntegrationSpec {
         contentsDir.file('docs/userguide/userguide.html').assertContents(containsString("Gradle User Manual</h1>"))
         contentsDir.file('docs/userguide/userguide_single.html').assertIsFile()
         contentsDir.file('docs/userguide/userguide_single.html').assertContents(containsString("<h1>Gradle User Manual: Version ${version}</h1>"))
-        contentsDir.file('docs/userguide/userguide.pdf').assertIsFile()
 
         // DSL reference
         contentsDir.file('docs/dsl/index.html').assertIsFile()

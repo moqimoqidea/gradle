@@ -21,6 +21,7 @@ import org.gradle.api.Action;
 import org.gradle.api.JavaVersion;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.internal.ConventionTask;
+import org.gradle.api.internal.provider.PropertyFactory;
 import org.gradle.api.jvm.ModularitySpec;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.provider.ListProperty;
@@ -44,8 +45,8 @@ import org.gradle.process.internal.DefaultJavaExecSpec;
 import org.gradle.process.internal.ExecActionFactory;
 import org.gradle.process.internal.JavaExecAction;
 import org.gradle.work.DisableCachingByDefault;
+import org.jspecify.annotations.Nullable;
 
-import javax.annotation.Nullable;
 import javax.inject.Inject;
 import java.io.File;
 import java.io.InputStream;
@@ -139,8 +140,9 @@ public abstract class JavaExec extends ConventionTask implements JavaExecSpec {
         javaExecSpec.getModularity().getInferModulePath().convention(modularity.getInferModulePath());
 
         JavaToolchainService javaToolchainService = getJavaToolchainService();
+        PropertyFactory propertyFactory = getPropertyFactory();
         Provider<JavaLauncher> javaLauncherConvention = getProviderFactory()
-            .provider(() -> JavaExecExecutableUtils.getExecutableOverrideToolchainSpec(this, objectFactory))
+            .provider(() -> JavaExecExecutableUtils.getExecutableOverrideToolchainSpec(this, propertyFactory))
             .flatMap(javaToolchainService::launcherFor)
             .orElse(javaToolchainService.launcherFor(it -> {}));
         javaLauncher = objectFactory.property(JavaLauncher.class).convention(javaLauncherConvention);
@@ -254,7 +256,7 @@ public abstract class JavaExec extends ConventionTask implements JavaExecSpec {
      */
     @Override
     @ToBeReplacedByLazyProperty
-    public Map<String, Object> getSystemProperties() {
+    public Map<String, @Nullable Object> getSystemProperties() {
         return javaExecSpec.getSystemProperties();
     }
 
@@ -262,7 +264,7 @@ public abstract class JavaExec extends ConventionTask implements JavaExecSpec {
      * {@inheritDoc}
      */
     @Override
-    public void setSystemProperties(Map<String, ?> properties) {
+    public void setSystemProperties(Map<String, ? extends @Nullable Object> properties) {
         javaExecSpec.setSystemProperties(properties);
     }
 
@@ -270,7 +272,7 @@ public abstract class JavaExec extends ConventionTask implements JavaExecSpec {
      * {@inheritDoc}
      */
     @Override
-    public JavaExec systemProperties(Map<String, ?> properties) {
+    public JavaExec systemProperties(Map<String, ? extends @Nullable Object> properties) {
         javaExecSpec.systemProperties(properties);
         return this;
     }
@@ -279,7 +281,7 @@ public abstract class JavaExec extends ConventionTask implements JavaExecSpec {
      * {@inheritDoc}
      */
     @Override
-    public JavaExec systemProperty(String name, Object value) {
+    public JavaExec systemProperty(String name, @Nullable Object value) {
         javaExecSpec.systemProperty(name, value);
         return this;
     }
@@ -802,6 +804,11 @@ public abstract class JavaExec extends ConventionTask implements JavaExecSpec {
 
     @Inject
     protected ObjectFactory getObjectFactory() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Inject
+    protected PropertyFactory getPropertyFactory() {
         throw new UnsupportedOperationException();
     }
 

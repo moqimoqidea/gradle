@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-import gradlebuild.configureAsRuntimeElements
+import gradlebuild.configureAsApiElements
 import gradlebuild.configureAsRuntimeJarClasspath
-import gradlebuild.packaging.transforms.ShrinkPublicApiClassesTransform
 
 plugins {
     id("gradlebuild.dependency-modules")
@@ -28,15 +27,6 @@ plugins {
 }
 
 description = "Generates a public API jar and corresponding component to publish it"
-
-// Defines configurations used to resolve the public Gradle API.
-val distribution = configurations.dependencyScope("distribution") {
-    description = "Dependencies to extract the public Gradle API from"
-}
-val distributionClasspath = configurations.resolvable("distributionClasspath") {
-    extendsFrom(distribution.get())
-    configureAsRuntimeJarClasspath(objects)
-}
 
 // Defines configurations used to resolve external dependencies
 // that the public API depends on.
@@ -54,37 +44,37 @@ val externalRuntimeClasspath = configurations.resolvable("externalRuntimeClasspa
     configureAsRuntimeJarClasspath(objects)
 }
 
-enum class Filtering {
-    PUBLIC_API, ALL
+// Defines configurations used to resolve the public Gradle API.
+val distribution = configurations.dependencyScope("distribution") {
+    description = "Dependencies to extract the public Gradle API from"
 }
 
-val filteredAttribute: Attribute<Filtering> = Attribute.of("org.gradle.apijar.filtered", Filtering::class.java)
-
-dependencies {
-    artifactTypes.getByName("jar") {
-        attributes.attribute(filteredAttribute, Filtering.ALL)
-    }
-
-    // Filter and shrink the published API.
-    registerTransform(ShrinkPublicApiClassesTransform::class.java) {
-        from.attribute(filteredAttribute, Filtering.ALL)
-            .attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements::class.java, LibraryElements.JAR))
-        to.attribute(filteredAttribute, Filtering.PUBLIC_API)
-    }
+// Resolvable configuration to get all projects having a runtime JAR
+val distributionClasspath = configurations.resolvable("distributionClasspath") {
+    extendsFrom(distribution.get())
+    configureAsRuntimeJarClasspath(objects)
 }
 
 val task = tasks.register<Jar>("jarGradleApi") {
+    // We use the resolvable configuration, but leverage withVariantReselection to obtain the subset of api stubs artifacts
+    // Some projects simply don't have one, which excludes them
     from(distributionClasspath.map { configuration ->
         configuration.incoming.artifactView {
+            withVariantReselection()
             attributes {
-                attribute(filteredAttribute, Filtering.PUBLIC_API)
+                attribute(Category.CATEGORY_ATTRIBUTE, objects.named("api-stubs"))
             }
+            lenient(true)
             componentFilter { componentId -> componentId is ProjectComponentIdentifier }
         }.files
-    })
+    }) {
+        // TODO Use better filtering
+        include("**/*.class")
+        include("META-INF/*.kotlin_module")
+    }
     destinationDirectory = layout.buildDirectory.dir("public-api/gradle-api")
     // This is needed because of the duplicate package-info.class files
-    duplicatesStrategy = DuplicatesStrategy.WARN
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 // The consumable configuration containing the public Gradle API artifact
@@ -92,7 +82,7 @@ val task = tasks.register<Jar>("jarGradleApi") {
 val gradleApiElements = configurations.consumable("gradleApiElements") {
     extendsFrom(externalApi.get())
     outgoing.artifact(task)
-    configureAsRuntimeElements(objects)
+    configureAsApiElements(objects)
 }
 
 open class SoftwareComponentFactoryProvider @Inject constructor(val factory: SoftwareComponentFactory)

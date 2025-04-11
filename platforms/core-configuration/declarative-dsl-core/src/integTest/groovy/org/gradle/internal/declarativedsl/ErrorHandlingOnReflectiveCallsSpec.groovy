@@ -18,29 +18,212 @@ package org.gradle.internal.declarativedsl
 
 import org.gradle.api.internal.plugins.software.RegistersSoftwareTypes
 import org.gradle.api.internal.plugins.software.SoftwareType
-import org.gradle.integtests.fixtures.AbstractIntegrationSpec
+import org.gradle.kotlin.dsl.fixtures.AbstractKotlinIntegrationTest
+import org.junit.Before
+import org.junit.Test
 
-class ErrorHandlingOnReflectiveCallsSpec extends AbstractIntegrationSpec {
+import static org.hamcrest.Matchers.containsString
 
-    def 'when reflective invocation fails the cause is identified correctly'() {
+class ErrorHandlingOnReflectiveCallsSpec extends AbstractKotlinIntegrationTest {
+
+    @Before
+    void clearDefaultSettings() {
+        if (!file("settings.gradle.kts").delete()) {
+            throw new RuntimeException("Failed to delete default settings script")
+        }
+    }
+
+    @Test
+    void 'can disambiguate between methods based on parameters'() {
         given:
-        file("build-logic/build.gradle") << """
-            plugins {
-                id('java-gradle-plugin')
-            }
-            gradlePlugin {
-                plugins {
-                    create("restrictedPlugin") {
-                        id = "com.example.restricted"
-                        implementationClass = "com.example.restricted.RestrictedPlugin"
-                    }
-                    create("restrictedEcosystem") {
-                        id = "com.example.restricted.ecosystem"
-                        implementationClass = "com.example.restricted.SoftwareTypeRegistrationPlugin"
-                    }
+
+        file("build-logic/build.gradle.kts") << defineBuildLogic([
+            "id(\"java-gradle-plugin\")",
+            "`kotlin-dsl`"
+        ])
+
+        file("build-logic/src/main/kotlin/com/example/restricted/Extension.kt") << """
+            package com.example.restricted;
+
+            import org.gradle.api.provider.Property
+            import org.gradle.declarative.dsl.model.annotations.Restricted
+
+            @Restricted
+            abstract class Extension {
+
+                @get:Restricted
+                abstract val prop: Property<String>
+
+                @Restricted
+                fun print(data: Int): String {
+                    throw RuntimeException("Boom Int")
+                }
+
+                @Restricted
+                fun print(data: String): String {
+                    throw RuntimeException("Boom String")
                 }
             }
         """
+
+        file("build-logic/src/main/java/com/example/restricted/SoftwareTypeRegistrationPlugin.java") <<
+            defineSettingsPluginRegisteringSoftwareTypeProvidingPlugin()
+
+        file("build-logic/src/main/java/com/example/restricted/RestrictedPlugin.java") << defineProjectPlugin()
+
+        file("settings.gradle.dcl") << defineSettingsLogic()
+
+        file("build.gradle.dcl") << """
+            restricted {
+                prop = print(1)
+            }
+        """
+
+        when:
+        def failure = buildAndFail(":help")
+
+        then:
+        failure.assertThatCause(containsString("Boom Int"))
+    }
+
+    @Test
+    void 'can disambiguate between annotated and non-annotated methods'() {
+        given:
+
+        file("build-logic/build.gradle.kts") << defineBuildLogic([
+            "id(\"java-gradle-plugin\")",
+            "`kotlin-dsl`"
+        ])
+
+        file("build-logic/src/main/kotlin/com/example/restricted/Extension.kt") << """
+            package com.example.restricted;
+
+            import org.gradle.api.Action
+            import org.gradle.api.model.ObjectFactory
+            import org.gradle.api.provider.Property
+            import org.gradle.declarative.dsl.model.annotations.Configuring
+            import org.gradle.declarative.dsl.model.annotations.Restricted
+            import javax.inject.Inject
+
+
+            @Restricted
+            abstract class Extension @Inject constructor(private val objects: ObjectFactory) {
+                val access: Access
+
+                init {
+                    this.access = objects.newInstance(Access::class.java)
+                }
+
+                @Configuring
+                fun access(configure: Action<Access>) {
+                    throw RuntimeException("Boom Action")
+                }
+
+                fun access(configure: (Access) -> Unit) {
+                    throw RuntimeException("Boom Lambda")
+                }
+
+                abstract class Access {
+                    @get:Restricted
+                    abstract val name: Property<String>?
+                }
+            }
+        """
+
+        file("build-logic/src/main/java/com/example/restricted/SoftwareTypeRegistrationPlugin.java") <<
+            defineSettingsPluginRegisteringSoftwareTypeProvidingPlugin()
+
+        file("build-logic/src/main/java/com/example/restricted/RestrictedPlugin.java") << defineProjectPlugin()
+
+        file("settings.gradle.dcl") << defineSettingsLogic()
+
+        file("build.gradle.dcl") << """
+            restricted {
+                access {
+                    name = "something"
+                }
+            }
+        """
+
+        when:
+        def failure = buildAndFail(":help")
+
+        then:
+        failure.assertThatCause(containsString("Boom Action"))
+    }
+
+    @Test
+    void 'fails disambiguating between two annotated, semantically equivalent methods'() {
+        given:
+        file("build-logic/build.gradle.kts") << defineBuildLogic([
+            "id(\"java-gradle-plugin\")",
+            "`kotlin-dsl`"
+        ])
+
+        file("build-logic/src/main/kotlin/com/example/restricted/Extension.kt") << """
+            package com.example.restricted;
+
+            import org.gradle.api.Action
+            import org.gradle.api.model.ObjectFactory
+            import org.gradle.api.provider.Property
+            import org.gradle.declarative.dsl.model.annotations.Configuring
+            import org.gradle.declarative.dsl.model.annotations.Restricted
+            import javax.inject.Inject
+
+
+            @Restricted
+            abstract class Extension @Inject constructor(private val objects: ObjectFactory) {
+                val access: Access
+
+                init {
+                    this.access = objects.newInstance(Access::class.java)
+                }
+
+                @Configuring
+                fun access(configure: Action<Access>) {
+                    throw RuntimeException("Boom Action")
+                }
+
+                @Configuring
+                fun access(configure: (Access) -> Unit) {
+                    throw RuntimeException("Boom Lambda")
+                }
+
+                abstract class Access {
+                    @get:Restricted
+                    abstract val name: Property<String>?
+                }
+            }
+        """
+
+        file("build-logic/src/main/java/com/example/restricted/SoftwareTypeRegistrationPlugin.java") <<
+            defineSettingsPluginRegisteringSoftwareTypeProvidingPlugin()
+
+        file("build-logic/src/main/java/com/example/restricted/RestrictedPlugin.java") << defineProjectPlugin()
+
+        file("settings.gradle.dcl") << defineSettingsLogic()
+
+        file("build.gradle.dcl") << """
+            restricted {
+                access {
+                    name = "something"
+                }
+            }
+        """
+
+        when:
+        def failure = buildAndFail(":help")
+
+        then:
+        failure.assertThatCause(containsString("Failed disambiguating between following functions (matches 2):"))
+        failure.assertThatCause(containsString("fun com.example.restricted.Extension.access(org.gradle.api.Action<com.example.restricted.Extension.Access>): kotlin.Unit"))
+        failure.assertThatCause(containsString("fun com.example.restricted.Extension.access((com.example.restricted.Extension.Access) -> kotlin.Unit): kotlin.Unit"))
+    }
+
+    @Test
+    void 'when reflective invocation fails the cause is identified correctly'() {
+        given:
+        file("build-logic/build.gradle.kts") << defineBuildLogic(["id(\"java-gradle-plugin\")"])
 
         file("build-logic/src/main/java/com/example/restricted/Extension.java") << """
             package com.example.restricted;
@@ -84,32 +267,9 @@ class ErrorHandlingOnReflectiveCallsSpec extends AbstractIntegrationSpec {
         file("build-logic/src/main/java/com/example/restricted/SoftwareTypeRegistrationPlugin.java") <<
             defineSettingsPluginRegisteringSoftwareTypeProvidingPlugin()
 
-        file("build-logic/src/main/java/com/example/restricted/RestrictedPlugin.java") << """
-            package com.example.restricted;
+        file("build-logic/src/main/java/com/example/restricted/RestrictedPlugin.java") << defineProjectPlugin()
 
-            import org.gradle.api.Plugin;
-            import org.gradle.api.Project;
-            import ${SoftwareType.class.name};
-
-            public abstract class RestrictedPlugin implements Plugin<Project> {
-                @SoftwareType(name = "restricted", modelPublicType = Extension.class)
-                public abstract Extension getExtension();
-
-                @Override
-                public void apply(Project target) {
-                }
-            }
-        """
-
-        file("settings.gradle.dcl") << """
-            pluginManagement {
-                includeBuild("build-logic")
-            }
-
-            plugins {
-                id("com.example.restricted.ecosystem")
-            }
-        """
+        file("settings.gradle.dcl") << defineSettingsLogic()
 
         file("build.gradle.dcl") << """
             restricted {
@@ -120,13 +280,48 @@ class ErrorHandlingOnReflectiveCallsSpec extends AbstractIntegrationSpec {
         """
 
         when:
-        fails(":help")
+        def failure = buildAndFail(":help")
 
         then:
-        failureCauseContains("Boom")
+        failure.assertThatCause(containsString("Boom"))
     }
 
-    private String defineSettingsPluginRegisteringSoftwareTypeProvidingPlugin() {
+    private static String defineBuildLogic(ArrayList<String> plugins) {
+        """
+            plugins {
+                ${plugins.join("\n")}
+            }
+            repositories {
+                mavenCentral()
+            }
+            gradlePlugin {
+                plugins {
+                    create("restrictedPlugin") {
+                        id = "com.example.restricted"
+                        implementationClass = "com.example.restricted.RestrictedPlugin"
+                    }
+                    create("restrictedEcosystem") {
+                        id = "com.example.restricted.ecosystem"
+                        implementationClass = "com.example.restricted.SoftwareTypeRegistrationPlugin"
+                    }
+                }
+            }
+        """
+    }
+
+    private static String defineSettingsLogic() {
+        """
+            pluginManagement {
+                includeBuild("build-logic")
+            }
+
+            plugins {
+                id("com.example.restricted.ecosystem")
+            }
+        """
+    }
+
+    private static String defineSettingsPluginRegisteringSoftwareTypeProvidingPlugin() {
         return """
         package com.example.restricted;
 
@@ -143,6 +338,25 @@ class ErrorHandlingOnReflectiveCallsSpec extends AbstractIntegrationSpec {
             public void apply(Settings target) {
             }
         }
+        """
+    }
+
+    private static String defineProjectPlugin() {
+        """
+            package com.example.restricted;
+
+            import org.gradle.api.Plugin;
+            import org.gradle.api.Project;
+            import ${SoftwareType.class.name};
+
+            public abstract class RestrictedPlugin implements Plugin<Project> {
+                @SoftwareType(name = "restricted", modelPublicType = Extension.class)
+                public abstract Extension getExtension();
+
+                @Override
+                public void apply(Project target) {
+                }
+            }
         """
     }
 

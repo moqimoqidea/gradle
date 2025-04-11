@@ -33,8 +33,6 @@ dependencies {
     implementation(projects.coreKotlinExtensions)
     implementation(projects.loggingApi)
     implementation(projects.persistentCache)
+    implementation(projects.scopedPersistentCache)
     implementation(projects.stdlibKotlinExtensions)
-}
-tasks.isolatedProjectsIntegTest {
-    enabled = false
 }

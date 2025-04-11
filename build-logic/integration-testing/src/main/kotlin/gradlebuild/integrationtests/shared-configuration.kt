@@ -21,6 +21,8 @@ import gradlebuild.basics.repoRoot
 import gradlebuild.basics.testSplitExcludeTestClasses
 import gradlebuild.basics.testSplitIncludeTestClasses
 import gradlebuild.basics.testSplitOnlyTestGradleVersion
+import gradlebuild.basics.daemonDebuggingIsEnabled
+import gradlebuild.basics.launcherDebuggingIsEnabled
 import gradlebuild.basics.testing.TestType
 import gradlebuild.integrationtests.extension.IntegrationTestExtension
 import gradlebuild.integrationtests.tasks.DistributionTest
@@ -75,13 +77,14 @@ fun Project.addDependenciesAndConfigurations(prefix: String) {
 
         resolver("${prefix}TestDistributionRuntimeClasspath", "gradle-bin-installation", distributionRuntimeOnly)
         resolver("${prefix}TestFullDistributionRuntimeClasspath", "gradle-bin-installation")
-        resolver("${prefix}TestLocalRepositoryPath", "gradle-local-repository", localRepository)
         resolver("${prefix}TestNormalizedDistributionPath", "gradle-normalized-distribution-zip", normalizedDistribution)
         resolver("${prefix}TestBinDistributionPath", "gradle-bin-distribution-zip", binDistribution)
         resolver("${prefix}TestAllDistributionPath", "gradle-all-distribution-zip", allDistribution)
         resolver("${prefix}TestDocsDistributionPath", "gradle-docs-distribution-zip", docsDistribution)
         resolver("${prefix}TestSrcDistributionPath", "gradle-src-distribution-zip", srcDistribution)
         resolver("${prefix}TestAgentsClasspath", LibraryElements.JAR)
+
+        localRepositoryResolver("${prefix}TestLocalRepositoryPath", localRepository)
     }
 
     // do not attempt to find projects when the plugin is applied just to generate accessors
@@ -196,21 +199,13 @@ fun IntegrationTest.setUpAgentIfNeeded(testType: TestType, executer: String) {
 
 private
 fun IntegrationTest.addDebugProperties() {
-    // TODO Move magic property out
-    val integtestDebug = project.providers.gradleProperty("org.gradle.integtest.debug")
-    if (integtestDebug.isPresent) {
+    if (project.daemonDebuggingIsEnabled) {
         systemProperties["org.gradle.integtest.debug"] = "true"
         testLogging.showStandardStreams = true
     }
-    // TODO Move magic property out
-    val integtestVerbose = project.providers.gradleProperty("org.gradle.integtest.verbose")
-    if (integtestVerbose.isPresent) {
-        testLogging.showStandardStreams = true
-    }
-    // TODO Move magic property out
-    val integtestLauncherDebug = project.providers.gradleProperty("org.gradle.integtest.launcher.debug")
-    if (integtestLauncherDebug.isPresent) {
+    if (project.launcherDebuggingIsEnabled) {
         systemProperties["org.gradle.integtest.launcher.debug"] = "true"
+        testLogging.showStandardStreams = true
     }
 }
 
@@ -259,6 +254,19 @@ fun Project.resolver(name: String, libraryElements: String, extends: Configurati
         attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage.JAVA_RUNTIME))
         attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.LIBRARY))
         attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(libraryElements))
+    }
+    isCanBeResolved = true
+    isCanBeConsumed = false
+    isVisible = false
+    if (extends != null) {
+        extendsFrom(extends)
+    }
+}
+
+private
+fun Project.localRepositoryResolver(name: String, extends: Configuration? = null) = configurations.create(name) {
+    attributes {
+        attribute(Category.CATEGORY_ATTRIBUTE, objects.named("gradle-local-repository"))
     }
     isCanBeResolved = true
     isCanBeConsumed = false

@@ -6,7 +6,11 @@ plugins {
 
 description = "Gradle Tooling API - the programmatic API to invoke Gradle"
 
-gradlebuildJava.usedInToolingApi()
+gradlebuildJava {
+    usedInToolingApi()
+    // JSpecify annotations on static inner type return types
+    usesJdkInternals = true
+}
 
 tasks.named<Jar>("sourcesJar") {
     // duplicate package-info.java because of split packages
@@ -30,26 +34,30 @@ errorprone {
 }
 
 dependencies {
-    shadedImplementation(libs.slf4jApi)
+    api(projects.baseServices)
+    api(projects.buildOperations)
+    api(projects.classloaders)
+    api(projects.concurrent)
+    api(projects.enterpriseLogging)
+    api(projects.messaging)
+    api(projects.stdlibJavaExtensions)
+    api(projects.time)
+    api(projects.wrapperShared)
 
-    runtimeOnly(projects.coreApi)
+    api(libs.jspecify)
+
     implementation(projects.core)
     implementation(projects.buildProcessServices)
+    implementation(projects.logging)
     implementation(projects.serviceProvider)
     implementation(projects.serviceRegistryBuilder)
 
     implementation(libs.guava)
+    implementation(libs.jsr305)
 
-    api(libs.jsr305)
-    api(projects.baseServices)
-    api(projects.buildOperations)
-    api(projects.concurrent)
-    api(projects.enterpriseLogging)
-    api(projects.stdlibJavaExtensions)
-    api(projects.logging)
-    api(projects.messaging)
-    api(projects.time)
-    api(projects.wrapperShared)
+    shadedImplementation(libs.slf4jApi)
+
+    runtimeOnly(projects.coreApi)
 
     testFixturesImplementation(projects.coreApi)
     testFixturesImplementation(projects.core)
@@ -75,11 +83,12 @@ dependencies {
     }
 
     testImplementation(projects.buildEvents)
-    
+
     testImplementation(testFixtures(projects.core))
     testImplementation(testFixtures(projects.logging))
     testImplementation(testFixtures(projects.dependencyManagement))
     testImplementation(testFixtures(projects.ide))
+    testImplementation(testFixtures(projects.time))
     testImplementation(testFixtures(projects.workers))
 
     integTestNormalizedDistribution(projects.distributionsFull) {

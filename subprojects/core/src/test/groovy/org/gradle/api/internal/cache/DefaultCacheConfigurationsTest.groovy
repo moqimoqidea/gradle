@@ -18,7 +18,6 @@ package org.gradle.api.internal.cache
 
 import org.gradle.api.cache.Cleanup
 import org.gradle.api.cache.MarkingStrategy
-import org.gradle.cache.internal.LegacyCacheCleanupEnablement
 import org.gradle.internal.time.FixedClock
 import org.gradle.util.TestUtil
 import spock.lang.Specification
@@ -26,8 +25,8 @@ import spock.lang.Specification
 import java.util.concurrent.TimeUnit
 
 class DefaultCacheConfigurationsTest extends Specification {
-    def clock = new FixedClock()
-    def cacheConfigurations = TestUtil.objectFactory().newInstance(DefaultCacheConfigurations.class, Mock(LegacyCacheCleanupEnablement), clock)
+    def clock = FixedClock.create()
+    def cacheConfigurations = TestUtil.objectFactory().newInstance(DefaultCacheConfigurations.class, clock)
 
     def "timestamp supplier uses last configured retention value"() {
         def config = cacheConfigurations.buildCache
@@ -244,7 +243,7 @@ class DefaultCacheConfigurationsTest extends Specification {
     }
 
     def "synchronized configurations reflect changes in property values"() {
-        def mutableCacheConfigurations = TestUtil.objectFactory().newInstance(DefaultCacheConfigurations, Mock(LegacyCacheCleanupEnablement), clock)
+        def mutableCacheConfigurations = TestUtil.objectFactory().newInstance(DefaultCacheConfigurations, clock)
 
         when:
         cacheConfigurations.synchronize(mutableCacheConfigurations)

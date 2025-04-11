@@ -20,9 +20,9 @@ import com.google.common.collect.ImmutableList
 import org.gradle.api.flow.FlowParameters
 import org.gradle.api.internal.tasks.AbstractTaskDependencyResolveContext
 import org.gradle.api.internal.tasks.properties.InspectionSchemeFactory
-import org.gradle.api.problems.Problem
 import org.gradle.api.problems.Severity
 import org.gradle.api.problems.internal.GradleCoreProblemGroup
+import org.gradle.api.problems.internal.InternalProblem
 import org.gradle.api.problems.internal.InternalProblemReporter
 import org.gradle.api.problems.internal.InternalProblems
 import org.gradle.api.services.BuildService
@@ -49,17 +49,18 @@ class FlowParametersInstantiator(
     fun <P : FlowParameters> newInstance(parametersType: Class<P>, configure: (P) -> Unit): P {
         return instantiator.newInstance(parametersType).also {
             configure(it)
+            // TODO(mlopatkin) this doesn't prevent late binding to a task output (e.g. there can be a Property in the chain that is set later).
             validate(parametersType, it)
         }
     }
 
     private
     fun <P : FlowParameters> validate(type: Class<P>, parameters: P) {
-        val problems = ImmutableList.builder<Problem>()
+        val problems = ImmutableList.builder<InternalProblem>()
         inspection.propertyWalker.visitProperties(
             parameters,
             object : ProblemRecordingTypeValidationContext(type, { Optional.empty() }, problemsService) {
-                override fun recordProblem(problem: Problem) {
+                override fun recordProblem(problem: InternalProblem) {
                     problems.add(problem)
                 }
             },

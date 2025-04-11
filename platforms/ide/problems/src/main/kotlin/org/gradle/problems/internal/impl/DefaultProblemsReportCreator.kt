@@ -20,15 +20,15 @@ import org.gradle.api.internal.StartParameterInternal
 import org.gradle.api.internal.file.temp.TemporaryFileProvider
 import org.gradle.api.logging.Logger
 import org.gradle.api.logging.Logging
-import org.gradle.api.problems.ProblemGroup
 import org.gradle.api.problems.FileLocation
 import org.gradle.api.problems.LineInFileLocation
-import org.gradle.api.problems.Problem
+import org.gradle.api.problems.ProblemGroup
 import org.gradle.api.problems.ProblemId
+import org.gradle.api.problems.internal.InternalProblem
 import org.gradle.api.problems.internal.PluginIdLocation
 import org.gradle.api.problems.internal.ProblemReportCreator
 import org.gradle.api.problems.internal.ProblemSummaryData
-import org.gradle.api.problems.internal.TaskPathLocation
+import org.gradle.api.problems.internal.TaskLocation
 import org.gradle.internal.buildoption.InternalOptions
 import org.gradle.internal.cc.impl.problems.BuildNameProvider
 import org.gradle.internal.cc.impl.problems.JsonSource
@@ -90,23 +90,24 @@ class DefaultProblemsReportCreator(
         }
     }
 
-    override fun addProblem(problem: Problem) {
+    override fun addProblem(problem: InternalProblem) {
         problemCount.incrementAndGet()
         report.onProblem(JsonProblemWriter(problem, failureDecorator, failureFactory))
     }
 }
 
+@Suppress("USELESS_ELVIS")
 fun JsonWriter.problemId(id: ProblemId) {
     property("problemId") {
         val list = generateSequence(id.group) { it.parent }.toList() + listOf(ProblemGroup.create(id.name, id.displayName))
         jsonObjectList(list) { group ->
-            property("name", group.name)
-            property("displayName", group.displayName)
+            property("name", group.name ?: "<no name provided>")
+            property("displayName", group.displayName ?: "<no display name provided>")
         }
     }
 }
 
-class JsonProblemWriter(private val problem: Problem, private val failureDecorator: FailureDecorator, private val failureFactory: FailureFactory) : JsonSource {
+class JsonProblemWriter(private val problem: InternalProblem, private val failureDecorator: FailureDecorator, private val failureFactory: FailureFactory) : JsonSource {
     override fun writeToJson(jsonWriter: JsonWriter) {
         with(jsonWriter) {
             jsonObject {
@@ -116,22 +117,23 @@ class JsonProblemWriter(private val problem: Problem, private val failureDecorat
                         jsonObjectList(fileLocations) { location ->
                             when (location) {
                                 is FileLocation -> fileLocation(location)
-                                is PluginIdLocation -> property("pluginId", location.pluginId!!)
-                                is TaskPathLocation -> property("taskPath", location.buildTreePath)
+                                is PluginIdLocation -> property("pluginId", location.pluginId)
+                                is TaskLocation -> property("taskPath", location.buildTreePath)
                             }
                         }
                     }
                 }
 
                 val id = problem.definition.id
-                property("problem") { writeStructuredMessage(StructuredMessage.forText(id.displayName)) }
+                property("problem") {
+                    writeStructuredMessage(StructuredMessage.forText(id.displayName))
+                }
                 property("severity", problem.definition.severity.toString().uppercase())
 
                 problem.details?.let {
                     property("problemDetails") {
                         writeStructuredMessage(
-                            StructuredMessage.Builder()
-                                .text(it).build()
+                            StructuredMessage.forText(it)
                         )
                     }
                 }
@@ -147,8 +149,7 @@ class JsonProblemWriter(private val problem: Problem, private val failureDecorat
                     property("solutions") {
                         jsonList(solutions) { solution ->
                             writeStructuredMessage(
-                                StructuredMessage.Builder()
-                                    .text(solution).build()
+                                StructuredMessage.forText(solution)
                             )
                         }
                     }

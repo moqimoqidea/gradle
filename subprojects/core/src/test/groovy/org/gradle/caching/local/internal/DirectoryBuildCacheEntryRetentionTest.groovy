@@ -20,7 +20,6 @@ import org.gradle.api.cache.Cleanup
 import org.gradle.api.internal.cache.CacheConfigurationsInternal
 import org.gradle.api.internal.cache.CacheResourceConfigurationInternal
 import org.gradle.api.internal.cache.DefaultCacheConfigurations
-import org.gradle.cache.internal.LegacyCacheCleanupEnablement
 import org.gradle.caching.local.DirectoryBuildCache
 import org.gradle.internal.time.FixedClock
 import org.gradle.util.TestUtil
@@ -31,9 +30,9 @@ import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 
 class DirectoryBuildCacheEntryRetentionTest extends Specification {
-    def clock = new FixedClock()
+    def clock = FixedClock.create()
     def directoryBuildCache = Mock(DirectoryBuildCache)
-    def cacheConfigurations = TestUtil.objectFactory().newInstance(DefaultCacheConfigurations.class, Mock(LegacyCacheCleanupEnablement), clock)
+    def cacheConfigurations = TestUtil.objectFactory().newInstance(DefaultCacheConfigurations.class, clock)
 
     def "setup"() {
         cacheConfigurations.cleanup.set(Cleanup.DEFAULT)

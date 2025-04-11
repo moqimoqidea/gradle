@@ -30,7 +30,6 @@ dependencies {
     api(projects.internalIntegTesting)
     api(projects.internalTesting)
     api(projects.stdlibJavaExtensions)
-    api(projects.logging)
     api(projects.persistentCache)
     api(projects.reportRendering)
     api(projects.time)
@@ -49,6 +48,7 @@ dependencies {
     api(libs.junit)
     api(libs.spock)
 
+    implementation(projects.classloaders)
     implementation(projects.concurrent)
     implementation(projects.wrapperShared)
 

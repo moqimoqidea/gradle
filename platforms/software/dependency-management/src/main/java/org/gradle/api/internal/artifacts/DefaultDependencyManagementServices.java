@@ -31,6 +31,7 @@ import org.gradle.api.attributes.AttributesSchema;
 import org.gradle.api.file.Directory;
 import org.gradle.api.file.ProjectLayout;
 import org.gradle.api.internal.CollectionCallbackActionDecorator;
+import org.gradle.api.internal.DocumentationRegistry;
 import org.gradle.api.internal.DomainObjectContext;
 import org.gradle.api.internal.GradleInternal;
 import org.gradle.api.internal.artifacts.configurations.ConfigurationContainerInternal;
@@ -64,6 +65,7 @@ import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.VersionS
 import org.gradle.api.internal.artifacts.ivyservice.modulecache.FileStoreAndIndexProvider;
 import org.gradle.api.internal.artifacts.ivyservice.moduleconverter.DefaultRootComponentMetadataBuilder;
 import org.gradle.api.internal.artifacts.ivyservice.projectmodule.DefaultLocalComponentRegistry;
+import org.gradle.api.internal.artifacts.ivyservice.projectmodule.LocalComponentRegistry;
 import org.gradle.api.internal.artifacts.ivyservice.projectmodule.ProjectDependencyResolver;
 import org.gradle.api.internal.artifacts.ivyservice.resolveengine.DependencyGraphResolver;
 import org.gradle.api.internal.artifacts.ivyservice.resolveengine.graph.builder.DependencyGraphBuilder;
@@ -89,6 +91,7 @@ import org.gradle.api.internal.artifacts.transform.TransformExecutionResult.Tran
 import org.gradle.api.internal.artifacts.transform.TransformInvocationFactory;
 import org.gradle.api.internal.artifacts.transform.TransformParameterScheme;
 import org.gradle.api.internal.artifacts.transform.TransformRegistrationFactory;
+import org.gradle.api.internal.artifacts.transform.TransformedVariantFactory;
 import org.gradle.api.internal.artifacts.type.ArtifactTypeRegistry;
 import org.gradle.api.internal.attributes.AttributeDescriberRegistry;
 import org.gradle.api.internal.attributes.AttributeDesugaring;
@@ -100,9 +103,7 @@ import org.gradle.api.internal.file.FileCollectionFactory;
 import org.gradle.api.internal.file.FileLookup;
 import org.gradle.api.internal.file.FilePropertyFactory;
 import org.gradle.api.internal.file.FileResolver;
-import org.gradle.api.internal.initialization.StandaloneDomainObjectContext;
 import org.gradle.api.internal.model.NamedObjectInstantiator;
-import org.gradle.api.internal.project.ProjectInternal;
 import org.gradle.api.internal.project.ProjectStateRegistry;
 import org.gradle.api.internal.provider.PropertyFactory;
 import org.gradle.api.internal.tasks.TaskDependencyFactory;
@@ -175,64 +176,17 @@ public class DefaultDependencyManagementServices implements DependencyManagement
     }
 
     @Override
-    public DependencyResolutionServices newBuildscriptResolver(DomainObjectContext owner) {
-        return newDetachedResolver(
-            parent.get(FileResolver.class),
-            parent.get(FileCollectionFactory.class),
-            owner,
-            new AnonymousModule()
-        );
-    }
-
-    @Override
     public DependencyResolutionServices newDetachedResolver(
         FileResolver resolver,
         FileCollectionFactory fileCollectionFactory,
         DomainObjectContext owner
-    ) {
-        DependencyResolutionServices services = newDetachedResolver(
-            resolver,
-            fileCollectionFactory,
-            owner,
-            new AnonymousModule()
-        );
-
-        // We restrict this so that detached resolvers only represent adhoc root components that do not expose variants.
-        services.getConfigurationContainer().configureEach(configuration -> {
-            if (configuration.isCanBeConsumed()) {
-                throw new InvalidUserCodeException("Cannot create consumable configurations in detached resolvers");
-            }
-        });
-
-        return services;
-    }
-
-    @Override
-    public DependencyResolutionServices newProjectBuildscriptResolver(
-        FileResolver resolver,
-        FileCollectionFactory fileCollectionFactory,
-        ProjectInternal project
-    ) {
-        return newDetachedResolver(
-            resolver,
-            fileCollectionFactory,
-            StandaloneDomainObjectContext.forProjectBuildscript(project),
-            project.getServices().get(DependencyMetaDataProvider.class).getModule()
-        );
-    }
-
-    private DependencyResolutionServices newDetachedResolver(
-        FileResolver resolver,
-        FileCollectionFactory fileCollectionFactory,
-        DomainObjectContext owner,
-        Module identity
     ) {
         ServiceRegistry services = ServiceRegistryBuilder.builder()
             .parent(parent)
             .provider(registration -> {
                 registration.add(FileResolver.class, resolver);
                 registration.add(FileCollectionFactory.class, fileCollectionFactory);
-                registration.add(DependencyMetaDataProvider.class, () -> identity);
+                registration.add(DependencyMetaDataProvider.class, AnonymousModule::new);
                 registration.add(ProjectFinder.class, new UnknownProjectFinder("Project dependencies cannot be declared here."));
                 registration.add(DomainObjectContext.class, owner);
             })
@@ -240,7 +194,16 @@ public class DefaultDependencyManagementServices implements DependencyManagement
             .provider(new DependencyResolutionScopeServices(owner))
             .build();
 
-        return services.get(DependencyResolutionServices.class);
+        DependencyResolutionServices dms = services.get(DependencyResolutionServices.class);
+
+        // We restrict this so that detached resolvers only represent adhoc root components that do not expose variants.
+        dms.getConfigurationContainer().configureEach(configuration -> {
+            if (configuration.isCanBeConsumed()) {
+                throw new InvalidUserCodeException("Cannot create consumable configurations in detached resolvers");
+            }
+        });
+
+        return dms;
     }
 
     @Override
@@ -272,16 +235,16 @@ public class DefaultDependencyManagementServices implements DependencyManagement
         }
 
         void configure(ServiceRegistration registration) {
-            registration.add(DefaultTransformedVariantFactory.class);
+            registration.add(TransformedVariantFactory.class, DefaultTransformedVariantFactory.class);
             registration.add(DefaultRootComponentMetadataBuilder.Factory.class);
             registration.add(ResolveExceptionMapper.class);
             registration.add(ResolutionStrategyFactory.class);
-            registration.add(DefaultLocalComponentRegistry.class);
+            registration.add(LocalComponentRegistry.class, DefaultLocalComponentRegistry.class);
             registration.add(ProjectDependencyResolver.class);
             registration.add(ConsumerProvidedVariantFinder.class);
             registration.add(DefaultConfigurationFactory.class);
-            registration.add(DefaultComponentSelectorConverter.class);
-            registration.add(DefaultArtifactResolutionQueryFactory.class);
+            registration.add(ComponentSelectorConverter.class, DefaultComponentSelectorConverter.class);
+            registration.add(ArtifactResolutionQueryFactory.class, DefaultArtifactResolutionQueryFactory.class);
             registration.add(DependencyGraphResolver.class);
             registration.add(DependencyGraphBuilder.class);
             registration.add(AttributeDescriberRegistry.class);
@@ -379,8 +342,15 @@ public class DefaultDependencyManagementServices implements DependencyManagement
         }
 
         @Provides
-        VariantTransformRegistry createVariantTransformRegistry(InstantiatorFactory instantiatorFactory, AttributesFactory attributesFactory, ServiceRegistry services, TransformRegistrationFactory transformRegistrationFactory, TransformParameterScheme parameterScheme) {
-            return new DefaultVariantTransformRegistry(instantiatorFactory, attributesFactory, services, transformRegistrationFactory, parameterScheme.getInstantiationScheme());
+        VariantTransformRegistry createVariantTransformRegistry(
+            InstantiatorFactory instantiatorFactory,
+            AttributesFactory attributesFactory,
+            ServiceRegistry services,
+            TransformRegistrationFactory transformRegistrationFactory,
+            TransformParameterScheme parameterScheme,
+            DocumentationRegistry documentationRegistry
+        ) {
+            return new DefaultVariantTransformRegistry(instantiatorFactory, attributesFactory, services, transformRegistrationFactory, parameterScheme.getInstantiationScheme(), documentationRegistry);
         }
 
         @Provides
@@ -549,7 +519,7 @@ public class DefaultDependencyManagementServices implements DependencyManagement
             return instantiator.newInstance(DefaultDependencyConstraintHandler.class, configurationContainer, dependencyConstraintFactory, objects, platformSupport);
         }
 
-        @Provides
+        @Provides({ComponentMetadataHandler.class, ComponentMetadataHandlerInternal.class})
         DefaultComponentMetadataHandler createComponentMetadataHandler(
             Instantiator instantiator,
             ImmutableModuleIdentifierFactory moduleIdentifierFactory,
@@ -567,7 +537,7 @@ public class DefaultDependencyManagementServices implements DependencyManagement
         }
 
         @Provides
-        DefaultComponentModuleMetadataHandler createComponentModuleMetadataHandler(Instantiator instantiator, ImmutableModuleIdentifierFactory moduleIdentifierFactory) {
+        ComponentModuleMetadataHandlerInternal createComponentModuleMetadataHandler(Instantiator instantiator, ImmutableModuleIdentifierFactory moduleIdentifierFactory) {
             return instantiator.newInstance(DefaultComponentModuleMetadataHandler.class, moduleIdentifierFactory);
         }
 
@@ -613,7 +583,6 @@ public class DefaultDependencyManagementServices implements DependencyManagement
             return new DefaultConfigurationResolver(
                 repositoriesSupplier,
                 shortCircuitingResolutionExecutor,
-                attributeDesugaring,
                 artifactTypeRegistry,
                 componentModuleMetadataHandler,
                 attributeSchemaServices
