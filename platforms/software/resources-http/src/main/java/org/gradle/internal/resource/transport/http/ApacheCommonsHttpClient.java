@@ -16,6 +16,9 @@
 
 package org.gradle.internal.resource.transport.http;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -272,6 +275,84 @@ public class ApacheCommonsHttpClient implements HttpClient {
         URI effectiveUri = stripUserCredentials(response.getEffectiveUri());
         LOGGER.info("Failed to get resource: {}. [HTTP {}: {})]", response.getMethod(), response.getStatusCode(), effectiveUri);
         throw new HttpErrorStatusCodeException(response.getMethod(), effectiveUri.toString(), response.getStatusCode(), response.getStatusReason());
+    }
+
+    /**
+     * Extracts error detail from the HTTP response.
+     * Supports RFC9457 (Problem Details for HTTP APIs) format.
+     * Falls back to reason phrase if RFC9457 is not available.
+     *
+     * @param response the HTTP response
+     * @return the error detail message
+     */
+    @VisibleForTesting
+    String extractErrorDetail(HttpClientResponse response) {
+        // Try RFC9457 first
+        String contentType = response.getHeader("Content-Type");
+        if (contentType != null && contentType.contains("application/problem+json")) {
+            LOGGER.debug("RFC9457 content type detected: {}", contentType);
+            String rfc9457Detail = parseRFC9457Response(response);
+            if (rfc9457Detail != null) {
+                LOGGER.debug("RFC9457 error detail extracted: {}", rfc9457Detail);
+                return rfc9457Detail;
+            }
+            LOGGER.debug("RFC9457 parsing failed or returned null, falling back to reason phrase");
+        }
+
+        // Fallback to reason phrase (empty in HTTP/2)
+        String reasonPhrase = response.getStatusLine().getReasonPhrase();
+        String result = reasonPhrase != null ? reasonPhrase : "";
+        LOGGER.debug("Using fallback error detail: '{}'", result);
+        return result;
+    }
+
+    /**
+     * Parses RFC9457 (Problem Details for HTTP APIs) response.
+     * RFC9457 defines a JSON format for error responses with fields like:
+     * - type: URI reference for the problem type
+     * - title: Short, human-readable summary
+     * - status: HTTP status code
+     * - detail: Human-readable explanation specific to this occurrence
+     * - instance: URI reference identifying the specific occurrence
+     *
+     * @param response the HTTP response
+     * @return the detail field from the RFC9457 response, or null if parsing fails
+     */
+    @VisibleForTesting
+    @Nullable
+    String parseRFC9457Response(HttpClientResponse response) {
+        try {
+            java.io.InputStream content = response.getContent();
+            if (content == null) {
+                LOGGER.debug("RFC9457 response has no content");
+                return null;
+            }
+
+            Rfc9457Problem problem = OBJECT_MAPPER.readValue(content, Rfc9457Problem.class);
+
+            LOGGER.trace("RFC9457 parsed successfully - type: {}, title: {}, status: {}, detail: {}, instance: {}",
+                problem.getType(), problem.getTitle(), problem.getStatus(), problem.getDetail(), problem.getInstance());
+
+            // Prefer "detail" field as it contains the specific explanation
+            String detail = problem.getDetail();
+            if (detail != null && !detail.isEmpty()) {
+                LOGGER.trace("Using RFC9457 'detail' field: {}", detail);
+                return detail;
+            }
+
+            // Fallback to "title" field if "detail" is not present
+            String title = problem.getTitle();
+            if (title != null && !title.isEmpty()) {
+                LOGGER.trace("RFC9457 'detail' field empty, using 'title' field: {}", title);
+                return title;
+            }
+
+            LOGGER.trace("RFC9457 response has neither 'detail' nor 'title' fields");
+            return null;
+        } catch (Exception e) {
+            LOGGER.warn("Failed to parse RFC9457 response", e);
+            return null;
+        }
     }
 
     private synchronized CloseableHttpClient getClient() {
