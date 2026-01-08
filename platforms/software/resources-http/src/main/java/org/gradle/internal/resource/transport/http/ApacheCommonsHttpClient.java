@@ -331,17 +331,17 @@ public class ApacheCommonsHttpClient implements HttpClient {
             Rfc9457Problem problem = OBJECT_MAPPER.readValue(content, Rfc9457Problem.class);
 
             LOGGER.trace("RFC9457 parsed successfully - type: {}, title: {}, status: {}, detail: {}, instance: {}",
-                problem.getType(), problem.getTitle(), problem.getStatus(), problem.getDetail(), problem.getInstance());
+                problem.type(), problem.title(), problem.status(), problem.detail(), problem.instance());
 
             // Prefer "detail" field as it contains the specific explanation
-            String detail = problem.getDetail();
+            String detail = problem.detail();
             if (detail != null && !detail.isEmpty()) {
                 LOGGER.trace("Using RFC9457 'detail' field: {}", detail);
                 return detail;
             }
 
             // Fallback to "title" field if "detail" is not present
-            String title = problem.getTitle();
+            String title = problem.title();
             if (title != null && !title.isEmpty()) {
                 LOGGER.trace("RFC9457 'detail' field empty, using 'title' field: {}", title);
                 return title;
@@ -402,6 +402,38 @@ public class ApacheCommonsHttpClient implements HttpClient {
 
         private URI getLastRedirectLocation() {
             return lastRedirectLocation;
+        }
+    }
+
+    /**
+     * Record representing RFC9457 Problem Details for HTTP APIs.
+     * See: https://www.rfc-editor.org/rfc/rfc9457.html
+     */
+    @NullMarked
+    @VisibleForTesting
+    record Rfc9457Problem(
+        @Nullable String type,
+        @Nullable String title,
+        @Nullable Integer status,
+        @Nullable String detail,
+        @Nullable String instance
+    ) {
+    }
+
+    /**
+     * Factory for creating the {@link HttpClientHelper}
+     */
+    @FunctionalInterface
+    @ServiceScope(Scope.Global.class)
+    public interface Factory {
+        HttpClientHelper create(HttpSettings settings);
+
+        /**
+         * Method should only be used for DI registry and testing.
+         * For other uses of {@link HttpClientHelper}, inject an instance of {@link Factory} to create one.
+         */
+        static Factory createFactory(DocumentationRegistry documentationRegistry) {
+            return settings -> new HttpClientHelper(documentationRegistry, settings);
         }
     }
 
