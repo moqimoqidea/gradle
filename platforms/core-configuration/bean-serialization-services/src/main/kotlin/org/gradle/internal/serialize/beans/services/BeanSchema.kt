@@ -23,8 +23,7 @@ import org.gradle.api.internal.ConventionTask
 import org.gradle.api.internal.IConventionAware
 import org.gradle.internal.instantiation.generator.AsmBackedClassGenerator
 import org.gradle.internal.reflect.ClassInspector
-import org.gradle.internal.reflection.access.ModuleOpener
-import java.lang.reflect.AccessibleObject
+import org.gradle.internal.reflection.access.ObjectOpener
 import java.lang.reflect.Field
 import java.lang.reflect.Modifier.isStatic
 import java.lang.reflect.Modifier.isTransient
@@ -38,29 +37,33 @@ val unsupportedFieldDeclaredTypes = listOf(
 
 
 internal
-fun relevantStateOf(beanType: Class<*>, moduleOpener: ModuleOpener): List<RelevantField> =
+fun relevantStateOf(beanType: Class<*>, objectOpener: ObjectOpener): List<RelevantField> =
     when (IConventionAware::class.java.isAssignableFrom(beanType)) {
-        true -> applyConventionMappingTo(beanType, relevantFieldsOf(beanType, moduleOpener), moduleOpener)
-        else -> relevantFieldsOf(beanType, moduleOpener)
+        true -> applyConventionMappingTo(beanType, relevantFieldsOf(beanType, objectOpener), objectOpener)
+        else -> relevantFieldsOf(beanType, objectOpener)
     }
 
 
 private
-fun relevantFieldsOf(beanType: Class<*>, moduleOpener: ModuleOpener) =
+fun relevantFieldsOf(beanType: Class<*>, objectOpener: ObjectOpener) =
     relevantTypeHierarchyOf(beanType)
         .flatMap(Class<*>::relevantFields)
-        .onEach { it.makeAccessibleVia(moduleOpener) }
+        .onEach { objectOpener.makeAccessible(it) }
         .map { RelevantField(it, unsupportedFieldTypeFor(it)) }
         .toList()
 
 
 private
-fun applyConventionMappingTo(taskType: Class<*>, relevantFields: List<RelevantField>, moduleOpener: ModuleOpener): List<RelevantField> =
+fun applyConventionMappingTo(
+    taskType: Class<*>,
+    relevantFields: List<RelevantField>,
+    objectOpener: ObjectOpener
+): List<RelevantField> =
     conventionAwareFieldsOf(taskType).toMap().let { flags ->
         relevantFields.map { relevantField ->
             relevantField.run {
                 flags[field]?.let { flagField ->
-                    flagField.makeAccessibleVia(moduleOpener)
+                    objectOpener.makeAccessible(flagField)
                     copy(isExplicitValueField = flagField)
                 }
             } ?: relevantField
@@ -171,22 +174,6 @@ val abstractTaskRelevantFields = listOf(
     "timeout",
     "logger",
 )
-
-
-fun AccessibleObject.makeAccessibleVia(moduleOpener: ModuleOpener) {
-    declaringClassOf()?.let(moduleOpener::openPackageOf)
-    @Suppress("deprecation")
-    if (!isAccessible) isAccessible = true
-}
-
-
-private
-fun AccessibleObject.declaringClassOf(): Class<*>? = when (this) {
-    is Field -> declaringClass
-    is java.lang.reflect.Method -> declaringClass
-    is java.lang.reflect.Constructor<*> -> declaringClass
-    else -> null
-}
 
 
 private
