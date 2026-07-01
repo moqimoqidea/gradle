@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 the original author or authors.
+ * Copyright 2026 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,12 +18,26 @@ package org.gradle.test.fixtures.server.http
 
 import groovy.transform.CompileStatic
 
+import java.util.concurrent.CopyOnWriteArrayList
 
 @CompileStatic
-class TestHttpHeaderAuthenticator implements AuthScheme.Authenticator {
+class HandlerChain {
+    private final List<HttpResourceHandler> handlers = new CopyOnWriteArrayList<>()
 
-    @Override
-    boolean authenticate(HttpRequest request, HttpResponse response) {
-        return true
+    void addHandler(HttpResourceHandler handler) {
+        handlers.add(handler)
+    }
+
+    void clear() {
+        handlers.clear()
+    }
+
+    void handle(String target, HttpRequest request, HttpResponse response) throws IOException {
+        for (HttpResourceHandler handler : handlers) {
+            if (request.handled) {
+                break
+            }
+            handler.handle(target, request, response)
+        }
     }
 }
