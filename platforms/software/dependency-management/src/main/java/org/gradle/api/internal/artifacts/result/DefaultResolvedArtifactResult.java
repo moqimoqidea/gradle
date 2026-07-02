@@ -41,7 +41,7 @@ public class DefaultResolvedArtifactResult implements ResolvedArtifactResult {
     private final Class<? extends Artifact> type;
     private final File file;
 
-    private final ResolvedVariantResult variantView;
+    private volatile @Nullable ResolvedVariantResult variantView;
 
     public DefaultResolvedArtifactResult(
         ComponentArtifactIdentifier identifier,
@@ -57,7 +57,6 @@ public class DefaultResolvedArtifactResult implements ResolvedArtifactResult {
         this.displayName = displayName;
         this.type = type;
         this.file = file;
-        this.variantView = new ArtifactVariantView();
     }
 
     @Override
@@ -94,16 +93,46 @@ public class DefaultResolvedArtifactResult implements ResolvedArtifactResult {
 
     @Override
     public ResolvedVariantResult getVariant() {
-        return variantView;
+        ResolvedVariantResult view = variantView;
+        if (view == null) {
+            view = new ArtifactVariantView(
+                getId().getComponentIdentifier(),
+                getAttributes(),
+                ImmutableList.copyOf(getCapabilities()),
+                displayName.getDisplayName()
+            );
+            this.variantView = view;
+            return view;
+        }
+        return view;
     }
 
-    private class ArtifactVariantView implements ResolvedVariantResult {
+    private static class ArtifactVariantView implements ResolvedVariantResult {
 
-        private volatile @Nullable ImmutableList<Capability> capabilitiesList = null;
+        private final ComponentIdentifier owner;
+        private final AttributeContainer attributes;
+        private final ImmutableList<Capability> capabilities;
+        private final String displayName;
+
+        private final int hashCode;
+
+        public ArtifactVariantView(
+            ComponentIdentifier owner,
+            AttributeContainer attributes,
+            ImmutableList<Capability> capabilities,
+            String displayName
+        ) {
+            this.owner = owner;
+            this.attributes = attributes;
+            this.capabilities = capabilities;
+            this.displayName = displayName;
+
+            this.hashCode = computeHashCode(owner, attributes, capabilities, displayName);
+        }
 
         @Override
         public ComponentIdentifier getOwner() {
-            return identifier.getComponentIdentifier();
+            return owner;
         }
 
         @Override
@@ -112,24 +141,58 @@ public class DefaultResolvedArtifactResult implements ResolvedArtifactResult {
         }
 
         @Override
-        public String getDisplayName() {
-            return displayName.getDisplayName();
+        public List<Capability> getCapabilities() {
+            return capabilities;
         }
 
         @Override
-        public List<Capability> getCapabilities() {
-            ImmutableList<Capability> capabilities = capabilitiesList;
-            if (capabilities == null) {
-                ImmutableList<Capability> copy = ImmutableList.copyOf(DefaultResolvedArtifactResult.this.capabilities);
-                this.capabilitiesList = copy;
-                return copy;
-            }
-            return capabilities;
+        public String getDisplayName() {
+            return displayName;
         }
 
         @Override
         public Optional<ResolvedVariantResult> getExternalVariant() {
             return Optional.empty();
+        }
+
+        @Override
+        public boolean equals(@Nullable Object o) {
+            if (o == this) {
+                return true;
+            }
+
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+
+            ArtifactVariantView that = (ArtifactVariantView) o;
+            return owner.equals(that.owner) &&
+                attributes.equals(that.attributes) &&
+                capabilities.equals(that.capabilities) &&
+                displayName.equals(that.displayName);
+        }
+
+        @Override
+        public int hashCode() {
+            return hashCode;
+        }
+
+        private static int computeHashCode(
+            ComponentIdentifier owner,
+            AttributeContainer attributes,
+            List<Capability> capabilities,
+            String displayName
+        ) {
+            int result = owner.hashCode();
+            result = 31 * result + attributes.hashCode();
+            result = 31 * result + capabilities.hashCode();
+            result = 31 * result + displayName.hashCode();
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return displayName;
         }
 
     }
