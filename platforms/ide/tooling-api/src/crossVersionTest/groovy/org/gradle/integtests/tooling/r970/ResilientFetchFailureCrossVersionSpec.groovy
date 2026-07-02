@@ -111,24 +111,26 @@ class CustomPlugin implements Plugin<Project> {
         """
     }
 
-    def "an eager configuration failure converts to the same whole tree text for every project"() {
+    def "an eager configuration failure is reported per project, clean and never-reached projects get a general message"() {
         when:
         fetchFailures()
 
-        then: "eager configuration aborts at the first failure and attaches it to every project"
+        then: "the whole build fails to configure, so every project fails to be queried and the build fails"
         thrown(BuildException)
         def result = fetchResult
         result.failedToQueryProjects.toSet() == ['root', 'a', 'b', 'c'] as Set
 
-        and: "every failed project shares the same whole failure tree text"
-        def fullDescriptions = ['root', 'a', 'b', 'c'].collect { result.rootDescriptionByProject[it] }
-        fullDescriptions.every { it != null }
-        fullDescriptions.toSet().size() == 1
+        and: "eager fails fast at the first broken project, so only it has a recorded failure, and it is its own"
+        def b = result.rootDescriptionByProject['b']
+        b.contains(":b")
+        !result.failureTreeByProject['b'].causes.isEmpty()
+        b.contains("Caused by:")
 
-        and: "the cause structure survives the round trip and the full description reassembles the whole chain"
-        def root = result.failureTreeByProject['root']
-        !root.causes.isEmpty()
-        result.rootDescriptionByProject['root'].contains("Caused by:")
+        and: "clean and never-reached projects report a general message, not the whole-build aggregate"
+        ['root', 'a', 'c'].each { p ->
+            assert result.rootDescriptionByProject[p].contains("could not be configured")
+            assert !result.rootDescriptionByProject[p].contains(":b")
+        }
     }
 
     def "configure-on-demand wrappers differ per project but the shared included build cause is identical"() {

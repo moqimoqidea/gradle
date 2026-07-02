@@ -18,6 +18,7 @@ package org.gradle.internal.build;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import org.gradle.api.GradleException;
 import org.gradle.api.internal.project.ProjectInternal;
 import org.gradle.api.internal.project.ProjectState;
 import org.gradle.internal.Try;
@@ -81,8 +82,12 @@ public class ResilientBuildToolingModelController extends DefaultBuildToolingMod
     }
 
     private static ToolingModelScopeResult configurationFailureResult(FailureFactory failureFactory, Throwable configurationFailure, @Nullable Object model) {
-        ToolingModelBuilderResultInternal clientResult = ToolingModelBuilderResultInternal.attachFailures(model, ImmutableList.of(failureFactory.create(configurationFailure)));
-        return ToolingModelScopeResult.withConfigurationFailure(clientResult, configurationFailure);
+        return configurationFailureResult(failureFactory, configurationFailure, configurationFailure, model);
+    }
+
+    private static ToolingModelScopeResult configurationFailureResult(FailureFactory failureFactory, Throwable clientFailure, Throwable buildFailure, @Nullable Object model) {
+        ToolingModelBuilderResultInternal clientResult = ToolingModelBuilderResultInternal.attachFailures(model, ImmutableList.of(failureFactory.create(clientFailure)));
+        return ToolingModelScopeResult.withConfigurationFailure(clientResult, buildFailure);
     }
 
     private static boolean canRunEvenIfProjectNotFullyConfigured(String modelName) {
@@ -125,7 +130,10 @@ public class ResilientBuildToolingModelController extends DefaultBuildToolingMod
                 Object model = canRunEvenIfProjectNotFullyConfigured(modelName)
                     ? Try.ofFailable(() -> buildModelWithParameter(parameter)).getOrMapFailure(failure -> null)
                     : null;
-                return configurationFailureResult(failureFactory, projectConfiguration.getFailure().get(), model);
+                // The client sees this project's own recorded failure, not the whole-build aggregate that is otherwise
+                // handed to every project (gradle/gradle#38184); the build still fails on the aggregate, raised once at finish.
+                Throwable buildFailure = projectConfiguration.getFailure().get();
+                return configurationFailureResult(failureFactory, projectOwnConfigurationFailure(), buildFailure, model);
             }
 
             // The project configured successfully, but the model builder itself may still fail.
@@ -137,6 +145,18 @@ public class ResilientBuildToolingModelController extends DefaultBuildToolingMod
                 ToolingModelBuilderResultInternal clientResult = ToolingModelBuilderResultInternal.of(null, ImmutableList.of(failureFactory.create(failure)));
                 return ToolingModelScopeResult.withModelBuilderFailure(clientResult, failure);
             });
+        }
+
+        /**
+         * The target project's own recorded configuration failure, read from state without reconfiguring it.
+         * Falls back to a general failure when the project has none of its own: it configured cleanly, or was never reached because another project aborted configuration.
+         */
+        private Throwable projectOwnConfigurationFailure() {
+            Throwable ownFailure = targetProject.getMutableModelEvenAfterFailure().getState().getFailure();
+            if (ownFailure != null) {
+                return ownFailure;
+            }
+            return new GradleException("The build could not be configured; see the reported build failures for the underlying problems.");
         }
 
         @Override
