@@ -168,7 +168,8 @@ public class ResilientBuildToolingModelController extends DefaultBuildToolingMod
 
         private ToolingModelScopeResult buildScopeResult(@Nullable ToolingModelParameterCarrier parameter) {
             ToolingModelBuilderResultInternal clientResult = buildModelWithParameter(parameter);
-            // Failures attached by a build-scoped builder (e.g. GradleBuildBuilder) are configuration failures of the visited builds, so they must still fail the build.
+            // Failures attached by a build-scoped builder (e.g. GradleBuildBuilder) are configuration failures
+            // of the visited builds, so they must still fail the build.
             List<Throwable> configurationFailures = clientResult.getFailures().stream()
                 .map(Failure::getOriginal)
                 .collect(toImmutableList());
