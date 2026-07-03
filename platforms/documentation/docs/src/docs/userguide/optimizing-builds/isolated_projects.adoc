@@ -715,7 +715,7 @@ Applying a plugin that is resolved lazily, such as a convention plugin from a bu
 
 A `gradle.lifecycle.beforeProject` (or `afterProject`) callback can only apply a plugin that is already on the project's plugin classpath.
 The callback merely registers an action; it does not resolve plugins itself.
-So `apply(plugin = "...")` from a callback fails with `Plugin with id '...' not found` for any plugin that is resolved lazily — that is, only built or downloaded when a `plugins {}` block requests it — and that has not already been resolved onto a classloader scope the project inherits.
+So `apply(plugin = "...")` from a callback fails with `Plugin with id '...' not found` for any plugin that is resolved lazily (only built or downloaded when a `plugins {}` block requests it), unless it has already been resolved onto a classloader scope the project inherits.
 This affects two common cases:
 
 - a convention plugin from a build registered via `pluginManagement.includeBuild(...)`, and
