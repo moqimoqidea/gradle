@@ -70,4 +70,11 @@ public final class BuildTreeModelCreatorResult<T> {
     public static <T> BuildTreeModelCreatorResult<T> of(@Nullable T model, ResilientBuildTreeFailureCollector failures) {
         return new BuildTreeModelCreatorResult<>(model, failures.getConfigurationFailures(), failures.getModelBuilderFailures());
     }
+
+    /**
+     * A result carrying the given model and no failures.
+     */
+    public static <T> BuildTreeModelCreatorResult<T> of(@Nullable T model) {
+        return new BuildTreeModelCreatorResult<>(model, ImmutableList.of(), ImmutableList.of());
+    }
 }

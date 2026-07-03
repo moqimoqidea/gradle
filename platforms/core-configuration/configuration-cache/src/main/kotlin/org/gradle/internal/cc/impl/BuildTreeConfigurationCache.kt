@@ -17,6 +17,7 @@
 package org.gradle.internal.cc.impl
 
 import org.gradle.api.internal.project.ProjectIdentity
+import org.gradle.internal.buildtree.BuildTreeModelCreatorResult
 import org.gradle.internal.buildtree.BuildTreeWorkGraph
 import org.gradle.internal.buildtree.ToolingModelRequestContext
 import org.gradle.internal.component.local.model.LocalComponentGraphResolveState
@@ -46,15 +47,18 @@ interface BuildTreeConfigurationCache {
     fun loadRequestedTasks(graph: BuildTreeWorkGraph, graphBuilder: BuildTreeWorkGraphBuilder?): BuildTreeWorkGraph.FinalizedGraph
 
     /**
-     * Prepares to load or create a model. Does nothing if the cached model is available or else prepares to capture
-     * configuration fingerprints and validation problems and then runs the given function.
+     * Prepares to load or create a model. Returns an empty result if the cached model is available or else prepares
+     * to capture configuration fingerprints and validation problems, runs the given function and returns its result.
+     * When the result carries failures, the cache entry is discarded instead of stored.
      */
-    fun maybePrepareModel(action: () -> Unit)
+    fun maybePrepareModel(action: () -> BuildTreeModelCreatorResult<Void>): BuildTreeModelCreatorResult<Void>
 
     /**
-     * Loads the cached model, if available, or else runs the given function to create it and then writes the result to the cache.
+     * Loads the cached model, if available, or else runs the given function to create it and then writes the model to
+     * the cache. When the result carries failures, the cache entry is discarded instead of stored, so the next build
+     * re-runs the function and re-reports the failures.
      */
-    fun <T : Any> loadOrCreateModel(creator: () -> T): T
+    fun <T : Any> loadOrCreateModel(creator: () -> BuildTreeModelCreatorResult<T>): BuildTreeModelCreatorResult<T>
 
     /**
      * Loads a cached intermediate model, if available, or else runs the given function to create it and then writes the result to the cache.
@@ -77,12 +81,6 @@ interface BuildTreeConfigurationCache {
      * Flushes any remaining state to the cache and closes any resources
      */
     fun finalizeCacheEntry()
-
-    /**
-     * Requests that the current cache entry is discarded instead of stored, because model building produced failures
-     * and the resulting partial configuration must not be reused. Has no effect when an existing entry is loaded.
-     */
-    fun requestEntryDiscard()
 
     // This is a temporary property to allow migration from a root build scoped cache to a build tree scoped cache
     val isLoaded: Boolean

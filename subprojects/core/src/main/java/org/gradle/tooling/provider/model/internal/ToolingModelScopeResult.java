@@ -22,47 +22,51 @@ import org.jspecify.annotations.Nullable;
 /**
  * The outcome of building a model in a {@link ToolingModelScope}: the {@link #getClientResult() result returned to the
  * client} and, when resilient model building did not throw a failure straight away, the failure that must still fail
- * the build. At most one of {@link #getModelBuilderFailure()} / {@link #getConfigurationFailure()} is set. Keeping
+ * the build. At most one of {@link #getConfigurationFailure()} / {@link #getModelBuilderFailure()} is set. Keeping
  * these here rather than on the client result keeps the client result free of build-lifecycle concerns.
  */
 @NullMarked
 public final class ToolingModelScopeResult {
 
-    private final ToolingModelBuilderResultInternal clientResult;
-    @Nullable
-    private final Throwable modelBuilderFailure;
     @Nullable
     private final Throwable configurationFailure;
+    @Nullable
+    private final Throwable modelBuilderFailure;
+    private final ToolingModelBuilderResultInternal clientResult;
 
-    private ToolingModelScopeResult(ToolingModelBuilderResultInternal clientResult, @Nullable Throwable modelBuilderFailure, @Nullable Throwable configurationFailure) {
-        this.clientResult = clientResult;
-        this.modelBuilderFailure = modelBuilderFailure;
+    private ToolingModelScopeResult(@Nullable Throwable configurationFailure, @Nullable Throwable modelBuilderFailure, ToolingModelBuilderResultInternal clientResult) {
         this.configurationFailure = configurationFailure;
+        this.modelBuilderFailure = modelBuilderFailure;
+        this.clientResult = clientResult;
     }
 
     /**
      * The model built cleanly.
      */
     public static ToolingModelScopeResult of(ToolingModelBuilderResultInternal clientResult) {
-        return new ToolingModelScopeResult(clientResult, null, null);
-    }
-
-    /**
-     * A tooling model builder threw after its target project had configured successfully.
-     */
-    public static ToolingModelScopeResult withModelBuilderFailure(ToolingModelBuilderResultInternal clientResult, Throwable failure) {
-        return new ToolingModelScopeResult(clientResult, failure, null);
+        return new ToolingModelScopeResult(null, null, clientResult);
     }
 
     /**
      * A project or the build itself failed to configure.
      */
     public static ToolingModelScopeResult withConfigurationFailure(ToolingModelBuilderResultInternal clientResult, Throwable failure) {
-        return new ToolingModelScopeResult(clientResult, null, failure);
+        return new ToolingModelScopeResult(failure, null, clientResult);
     }
 
-    public ToolingModelBuilderResultInternal getClientResult() {
-        return clientResult;
+    /**
+     * A tooling model builder threw after its target project had configured successfully.
+     */
+    public static ToolingModelScopeResult withModelBuilderFailure(ToolingModelBuilderResultInternal clientResult, Throwable failure) {
+        return new ToolingModelScopeResult(null, failure, clientResult);
+    }
+
+    /**
+     * A configuration failure hidden behind {@link #getClientResult() the result}, or {@code null} if none.
+     */
+    @Nullable
+    public Throwable getConfigurationFailure() {
+        return configurationFailure;
     }
 
     /**
@@ -73,11 +77,7 @@ public final class ToolingModelScopeResult {
         return modelBuilderFailure;
     }
 
-    /**
-     * A configuration failure hidden behind {@link #getClientResult() the result}, or {@code null} if none.
-     */
-    @Nullable
-    public Throwable getConfigurationFailure() {
-        return configurationFailure;
+    public ToolingModelBuilderResultInternal getClientResult() {
+        return clientResult;
     }
 }

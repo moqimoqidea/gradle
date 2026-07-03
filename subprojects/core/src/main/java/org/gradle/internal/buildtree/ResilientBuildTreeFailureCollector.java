@@ -34,29 +34,29 @@ import java.util.List;
 @NullMarked
 public final class ResilientBuildTreeFailureCollector {
 
-    private final List<Throwable> modelBuilderFailures = new ArrayList<>();
     private final List<Throwable> configurationFailures = new ArrayList<>();
+    private final List<Throwable> modelBuilderFailures = new ArrayList<>();
 
     /**
      * Collects any failure held behind the given result, so the build fails when it finishes even though the (partial)
      * client result is returned.
      */
     public synchronized void collectFrom(ToolingModelScopeResult result) {
-        Throwable modelBuilderFailure = result.getModelBuilderFailure();
-        if (modelBuilderFailure != null) {
-            modelBuilderFailures.add(modelBuilderFailure);
-        }
         Throwable configurationFailure = result.getConfigurationFailure();
         if (configurationFailure != null) {
             configurationFailures.add(configurationFailure);
         }
-    }
-
-    public synchronized List<Throwable> getModelBuilderFailures() {
-        return ImmutableList.copyOf(modelBuilderFailures);
+        Throwable modelBuilderFailure = result.getModelBuilderFailure();
+        if (modelBuilderFailure != null) {
+            modelBuilderFailures.add(modelBuilderFailure);
+        }
     }
 
     public synchronized List<Throwable> getConfigurationFailures() {
         return ImmutableList.copyOf(configurationFailures);
+    }
+
+    public synchronized List<Throwable> getModelBuilderFailures() {
+        return ImmutableList.copyOf(modelBuilderFailures);
     }
 }
