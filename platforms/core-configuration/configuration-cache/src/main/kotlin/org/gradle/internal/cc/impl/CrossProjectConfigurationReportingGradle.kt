@@ -71,8 +71,9 @@ class CrossProjectConfigurationReportingGradle(
         else -> gradle
     }
 
-    private val crossProjectModelAccess: CrossProjectModelAccess
-        get() = delegate.serviceOf()
+    private val crossProjectModelAccess: CrossProjectModelAccess by lazy {
+        delegate.serviceOf()
+    }
 
     private val projectConfigurator: CrossProjectConfigurator = delegate.serviceOf()
 

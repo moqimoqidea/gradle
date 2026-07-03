@@ -27,9 +27,9 @@ import org.gradle.invocation.GradleLifecycleActionExecutor;
 import org.gradle.util.Path;
 import org.jspecify.annotations.Nullable;
 
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 public class DefaultCrossProjectModelAccess implements CrossProjectModelAccess {
@@ -83,23 +83,21 @@ public class DefaultCrossProjectModelAccess implements CrossProjectModelAccess {
     @Override
     public Set<? extends ProjectInternal> getSubprojects(ProjectIdentity referrer, ProjectIdentity target) {
         ProjectState targetProjectState = projectRegistry.getProject(target.getProjectPath());
-        return subprojectsFor(referrer, targetProjectState);
+        Set<ProjectInternal> subprojects = new LinkedHashSet<>();
+        for (ProjectState subproject : ProjectOrderingUtil.orderedSubprojectsOf(targetProjectState)) {
+            subprojects.add(accessFromState(referrer, subproject));
+        }
+        return subprojects;
     }
 
     @Override
     public Set<? extends ProjectInternal> getAllprojects(ProjectIdentity referrer, ProjectIdentity target) {
         ProjectState targetProjectState = projectRegistry.getProject(target.getProjectPath());
-        Set<ProjectInternal> allProjects = subprojectsFor(referrer, targetProjectState);
-        allProjects.add(accessFromState(referrer, targetProjectState));
-        return allProjects;
-    }
-
-    private Set<ProjectInternal> subprojectsFor(ProjectIdentity referrer, ProjectState targetProjectState) {
-        TreeSet<ProjectInternal> subprojects = new TreeSet<>();
-        for (ProjectState subproject : ProjectOrderingUtil.orderedSubprojectsOf(targetProjectState)) {
-            subprojects.add(accessFromState(referrer, subproject));
+        Set<ProjectInternal> allProjects = new LinkedHashSet<>();
+        for (ProjectState subproject : ProjectOrderingUtil.orderedAllProjectsOf(targetProjectState)) {
+            allProjects.add(accessFromState(referrer, subproject));
         }
-        return subprojects;
+        return allProjects;
     }
 
     @Override
