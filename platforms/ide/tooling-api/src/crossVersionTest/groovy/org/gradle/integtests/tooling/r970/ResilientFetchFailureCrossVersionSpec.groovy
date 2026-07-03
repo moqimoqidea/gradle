@@ -32,6 +32,10 @@ class ResilientFetchFailureCrossVersionSpec extends KotlinDslPluginRelatedToolin
         "-Dorg.gradle.unsafe.isolated-projects=true"
     ]
 
+    // The exact client-facing failure for a project with no failure of its own (clean or never-reached). Asserted in
+    // full so this text is a guarantee: changing it must be a deliberate change that updates this test.
+    private static final String GENERAL_CONFIGURATION_FAILURE = "The build could not be configured; see the reported build failures for the underlying problems."
+
     private FetchFailureTreeAction.Result fetchResult
 
     def setup() {
@@ -128,7 +132,7 @@ class CustomPlugin implements Plugin<Project> {
 
         and: "clean and never-reached projects report a general message, not the whole-build aggregate"
         ['root', 'a', 'c'].each { p ->
-            assert result.rootDescriptionByProject[p].contains("could not be configured")
+            assert result.rootDescriptionByProject[p].contains(GENERAL_CONFIGURATION_FAILURE)
             assert !result.rootDescriptionByProject[p].contains(":b")
         }
     }

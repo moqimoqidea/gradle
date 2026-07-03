@@ -29,6 +29,10 @@ class ResilientPerProjectFailureCrossVersionSpec extends KotlinDslPluginRelatedT
 
     private static final List<String> IP = ["-Dorg.gradle.isolated-projects=true"]
 
+    // The exact client-facing failure for a project with no failure of its own (clean or never-reached). Asserted in
+    // full so this text is a guarantee: changing it must be a deliberate change that updates this test.
+    private static final String GENERAL_CONFIGURATION_FAILURE = "The build could not be configured; see the reported build failures for the underlying problems."
+
     private FetchFailureTreeAction.Result fetchResult
 
     def setup() {
@@ -80,8 +84,8 @@ class ResilientPerProjectFailureCrossVersionSpec extends KotlinDslPluginRelatedT
         !treeContains(result, "c", "FAILURE(:b)")
 
         and: "clean projects carry the general message, not either sibling's failure or the whole-build aggregate"
-        treeContains(result, "root", "could not be configured")
-        treeContains(result, "a", "could not be configured")
+        treeContains(result, "root", GENERAL_CONFIGURATION_FAILURE)
+        treeContains(result, "a", GENERAL_CONFIGURATION_FAILURE)
         !treeContains(result, "root", "FAILURE(:b)")
         !treeContains(result, "root", "FAILURE(:c)")
         !treeContains(result, "a", "FAILURE(:b)")
