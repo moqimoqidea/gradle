@@ -362,7 +362,7 @@ include::sample[dir="snippets/reference/runtime-configuration/callbacks/groovy",
 ====
 
 TIP: When <<isolated_projects.adoc#isolated_projects,Isolated Projects>> is enabled, applying a plugin that is resolved lazily — for example a convention plugin from a build registered via `pluginManagement.includeBuild(...)`, or a third-party plugin from a repository — requires additional setup.
-See <<isolated_projects.adoc#sec:lifecycle_callbacks_with_included_plugin_builds,Applying plugins from a lifecycle callback>>.
+See <<isolated_projects.adoc#sec:applying_plugins_from_a_lifecycle_callback,Applying plugins from a lifecycle callback>>.
 
 [[after_project]]
 ==== `afterProject`
@@ -376,7 +376,7 @@ include::sample[dir="snippets/reference/runtime-configuration/callbacks/groovy",
 ====
 
 TIP: When <<isolated_projects.adoc#isolated_projects,Isolated Projects>> is enabled, applying a plugin that is resolved lazily — for example a convention plugin from a build registered via `pluginManagement.includeBuild(...)`, or a third-party plugin from a repository — requires additional setup.
-See <<isolated_projects.adoc#sec:lifecycle_callbacks_with_included_plugin_builds,Applying plugins from a lifecycle callback>>.
+See <<isolated_projects.adoc#sec:applying_plugins_from_a_lifecycle_callback,Applying plugins from a lifecycle callback>>.
 
 [[projects_evaluated]]
 ==== `projectsEvaluated`
