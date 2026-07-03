@@ -766,8 +766,10 @@ include::sample[dir="snippets/isolatedProjects/lifecycleApplyFalse/groovy",files
 
 For a third-party plugin from a repository, include the plugin version so it can be resolved (or declare the version in `pluginManagement { plugins { ... } }` and request it without a version here):
 
-[source,kotlin]
+[.multi-language-sample]
+=====
 .settings.gradle.kts
+[source,kotlin]
 ----
 plugins {
     id("com.example.foo") version "1.2.3" apply false
@@ -777,14 +779,31 @@ gradle.lifecycle.beforeProject {
     apply(plugin = "com.example.foo")
 }
 ----
+=====
+[.multi-language-sample]
+=====
+.settings.gradle
+[source,groovy]
+----
+plugins {
+    id 'com.example.foo' version '1.2.3' apply false
+}
+
+gradle.lifecycle.beforeProject {
+    it.apply plugin: 'com.example.foo'
+}
+----
+=====
 
 *Migrating from `allprojects {}`*
 
 Under Isolated Projects, applying a plugin to other projects from an `allprojects {}` (or `subprojects {}`) block in the root build script is not allowed, because it configures projects other than the one owning the script.
 A third-party plugin applied this way is usually declared with `apply false` in the *root build script*:
 
-[source,kotlin]
+[.multi-language-sample]
+=====
 .build.gradle.kts
+[source,kotlin]
 ----
 plugins {
     id("com.example.foo") version "1.2.3" apply false
@@ -794,6 +813,21 @@ allprojects {
     apply(plugin = "com.example.foo")
 }
 ----
+=====
+[.multi-language-sample]
+=====
+.build.gradle
+[source,groovy]
+----
+plugins {
+    id 'com.example.foo' version '1.2.3' apply false
+}
+
+allprojects {
+    apply plugin: 'com.example.foo'
+}
+----
+=====
 
 Replacing `allprojects {}` with a `gradle.lifecycle.beforeProject` callback is not enough on its own: the callback is registered in the settings script and runs against a classloader scope that does not see the root build script's classpath.
 The plugin declaration must move into `settings.gradle(.kts)` too, exactly as in the settings `plugins {}` workaround shown above.
