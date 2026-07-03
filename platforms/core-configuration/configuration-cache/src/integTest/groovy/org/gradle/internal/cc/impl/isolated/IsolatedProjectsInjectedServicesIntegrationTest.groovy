@@ -57,7 +57,7 @@ class IsolatedProjectsInjectedServicesIntegrationTest extends AbstractIsolatedPr
         mode << ALL_MODES
     }
 
-    def "reports a problem on access to mutable state of `#service` injected into a plugin"() {
+    def "reports a problem on access to mutable state of `#service` injected into a project plugin"() {
         createDirs("a")
         settingsFile """
             include("a")
