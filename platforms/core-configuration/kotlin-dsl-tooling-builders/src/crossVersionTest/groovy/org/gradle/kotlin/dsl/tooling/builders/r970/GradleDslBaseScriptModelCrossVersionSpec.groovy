@@ -51,7 +51,6 @@ class GradleDslBaseScriptModelCrossVersionSpec extends AbstractKotlinScriptModel
             action()
                 .buildFinished(new FetchBaseModelAfterProjectConfigurationAction(ApiType.FETCH), { result = it } as IntermediateResultHandler)
                 .build()
-                .forTasks()
                 .run()
         }
 
@@ -106,7 +105,6 @@ class GradleDslBaseScriptModelCrossVersionSpec extends AbstractKotlinScriptModel
             action()
                 .buildFinished(new FetchBaseModelAfterSettingsEvaluationAction(ApiType.FETCH), { result = it } as IntermediateResultHandler)
                 .build()
-                .forTasks()
                 .run()
         }
 

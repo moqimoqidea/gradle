@@ -24,6 +24,7 @@ import org.gradle.integtests.tooling.r940.TestResilientModelAction
 import org.gradle.tooling.BuildException
 import org.gradle.tooling.IntermediateResultHandler
 
+import static org.gradle.integtests.tooling.r940.TestResilientModelAction.QueryStrategy.EDITABLE_BUILDS_FIRST
 import static org.gradle.integtests.tooling.r940.TestResilientModelAction.QueryStrategy.ROOT_BUILD_FIRST
 
 @ToolingApiVersion('>=9.3.0')
@@ -34,9 +35,18 @@ class CustomResilientModelCrossVersionSpec extends KotlinDslPluginRelatedTooling
         "-Dorg.gradle.isolated-projects=true"
     ]
 
+    private static final List<String> IP_CONFIGURE_ON_DEMAND_FLAGS = [
+        "-Dorg.gradle.internal.isolated-projects.configure-on-demand=true",
+        "-Dorg.gradle.unsafe.isolated-projects=true"
+    ]
+
     def setup() {
         settingsFile.delete()
-        file('init.gradle') << """
+        file('init.gradle').text = customModelInitScript("return new CustomModel()")
+    }
+
+    private static String customModelInitScript(String buildAllBody) {
+        """
 import org.gradle.tooling.provider.model.ToolingModelBuilderRegistry
 import org.gradle.tooling.provider.model.ToolingModelBuilder
 import javax.inject.Inject
@@ -57,23 +67,19 @@ class CustomModel implements Serializable {
 class CustomThing implements Serializable {
 }
 
-class FailingBuilder implements ToolingModelBuilder {
+class CustomBuilder implements ToolingModelBuilder {
     boolean canBuild(String modelName) {
         return modelName == '${CustomModel.name}'
     }
     Object buildAll(String modelName, Project project) {
-        // The project configures successfully; the model builder itself fails for project ':b'.
-        if (project.name == 'b') {
-            throw new RuntimeException("Failing model builder for project ':b'")
-        }
-        return new CustomModel()
+        $buildAllBody
     }
 }
 
 class CustomPlugin implements Plugin<Project> {
     @Inject
     CustomPlugin(ToolingModelBuilderRegistry registry) {
-        registry.register(new FailingBuilder())
+        registry.register(new CustomBuilder())
     }
 
     public void apply(Project project) {
@@ -83,6 +89,15 @@ class CustomPlugin implements Plugin<Project> {
     }
 
     def "resilient sync propagates a model builder failure to the client when a phased build action queries a custom model#description"() {
+        given:
+        // Every project configures successfully; only the model builder for project ':b' fails,
+        // exercising a model builder failure as opposed to a configuration failure.
+        file('init.gradle').text = customModelInitScript("""
+            if (project.name == 'b') {
+                throw new RuntimeException("Failing model builder for project ':b'")
+            }
+            return new CustomModel()
+        """)
         settingsKotlinFile << """
             rootProject.name = "root"
             include("a", "b", "c")
@@ -101,7 +116,6 @@ class CustomPlugin implements Plugin<Project> {
                 .buildFinished(new TestResilientModelAction(CustomModel, ROOT_BUILD_FIRST), { capturedResult = it } as IntermediateResultHandler)
                 .build()
                 .withArguments("--init-script=${file('init.gradle').absolutePath}", *extraGradleProperties)
-                .forTasks()
                 .run()
         }
 
@@ -113,9 +127,10 @@ class CustomPlugin implements Plugin<Project> {
         capturedResult.failedToQueryProjects == ['b']
 
         where:
-        description | extraGradleProperties
-        ""          | []
-        " with IP"  | IP_ENABLED
+        description                 | extraGradleProperties
+        ""                          | []
+        " with IP"                  | IP_ENABLED
+        " with configure-on-demand" | IP_CONFIGURE_ON_DEMAND_FLAGS
     }
 
     def "resilient sync propagates a project configuration failure to the client when a phased build action queries a custom model#description"() {
@@ -139,22 +154,89 @@ class CustomPlugin implements Plugin<Project> {
                 .buildFinished(new TestResilientModelAction(CustomModel, ROOT_BUILD_FIRST), { capturedResult = it } as IntermediateResultHandler)
                 .build()
                 .withArguments("--init-script=${file('init.gradle').absolutePath}", *extraGradleProperties)
-                .forTasks()
                 .run()
         }
 
         then:
         def e = thrown(BuildException)
         collectCauseMessages(e).any { it?.contains("Failing during project configuration") }
-        // Partial models are still delivered to the client before the build fails. A configuration failure fails
-        // the whole build's configuration, so every project fails to be queried.
-        capturedResult.successfullyQueriedProjects == []
-        capturedResult.failedToQueryProjects == ['root', 'a', 'b', 'c']
+        // Partial models are still delivered to the client before the build fails. Eager configuration fails the
+        // whole build's configuration, so every project fails to be queried. With configure-on-demand, projects are
+        // configured on demand as they are queried, so only the broken project fails.
+        capturedResult.successfullyQueriedProjects == expectedSuccessfulProjects
+        capturedResult.failedToQueryProjects == expectedFailedProjects
 
         where:
-        description | extraGradleProperties
-        ""          | []
-        " with IP"  | IP_ENABLED
+        description                 | extraGradleProperties        | expectedSuccessfulProjects | expectedFailedProjects
+        ""                          | []                           | []                         | ['root', 'a', 'b', 'c']
+        " with IP"                  | IP_ENABLED                   | []                         | ['root', 'a', 'b', 'c']
+        " with configure-on-demand" | IP_CONFIGURE_ON_DEMAND_FLAGS | ['root', 'a', 'c']         | ['b']
+    }
+
+    def "resilient sync fails the build but can query custom model for included build, even if main project configuration fails#description #queryStrategy"() {
+        // The builders succeed; the failure comes from configuring project ':b', which applies a broken convention
+        // plugin from the included build.
+        settingsKotlinFile << """
+            rootProject.name = "root"
+            include("a", "b", "c")
+            includeBuild("build-logic")
+        """
+        def included = file("build-logic")
+        included.file("settings.gradle.kts") << """
+            rootProject.name = "build-logic"
+
+            pluginManagement {
+               $repositoriesBlock
+            }
+        """
+        included.file("build.gradle.kts") << """
+            plugins {
+                `kotlin-dsl`
+            }
+        """
+        included.file("src/main/kotlin/build-logic.gradle.kts") << """
+            broken !!!
+        """
+        file("a/build.gradle.kts") << """
+            plugins {
+                id("java")
+            }
+        """
+        file("b/build.gradle.kts") << """
+            plugins {
+                id("build-logic")
+            }
+        """
+        file("c/build.gradle.kts") << """
+            plugins {
+                id("java")
+            }
+        """
+
+        def capturedResult = null
+
+        when:
+        // Note: no .forTasks() here, matching the r940 original. An empty .forTasks() requests the DEFAULT tasks,
+        // and task scheduling configures all projects eagerly, which would defeat configure-on-demand isolation.
+        fails {
+            action()
+                .buildFinished(new TestResilientModelAction(CustomModel, queryStrategy), { capturedResult = it } as IntermediateResultHandler)
+                .build()
+                .withArguments("--init-script=${file('init.gradle').absolutePath}", *extraGradleProperties)
+                .run()
+        }
+
+        then:
+        thrown(BuildException)
+        capturedResult.successfullyQueriedProjects == expectedSuccessfulProjects
+        capturedResult.failedToQueryProjects == expectedFailedProjects
+
+        where:
+        description                 | queryStrategy         | extraGradleProperties        | expectedSuccessfulProjects        | expectedFailedProjects
+        ""                          | ROOT_BUILD_FIRST      | []                           | ['build-logic']                   | ['root', 'a', 'b', 'c']
+        ""                          | EDITABLE_BUILDS_FIRST | []                           | ['build-logic']                   | ['root', 'a', 'b', 'c']
+        " with configure-on-demand" | ROOT_BUILD_FIRST      | IP_CONFIGURE_ON_DEMAND_FLAGS | ['root', 'a', 'c', 'build-logic'] | ['b']
+        " with configure-on-demand" | EDITABLE_BUILDS_FIRST | IP_CONFIGURE_ON_DEMAND_FLAGS | ['build-logic', 'root', 'a', 'c'] | ['b']
     }
 
 }

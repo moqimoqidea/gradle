@@ -87,7 +87,6 @@ class ResilientIdeaProjectCrossVersionSpec extends KotlinDslPluginRelatedTooling
                 .buildFinished(new TestResilientModelAction(IdeaProject, ROOT_BUILD_FIRST), { capturedResult = it } as IntermediateResultHandler)
                 .build()
                 .withArguments(*extraGradleProperties)
-                .forTasks()
                 .run()
         }
 
@@ -148,7 +147,6 @@ class ResilientIdeaProjectCrossVersionSpec extends KotlinDslPluginRelatedTooling
                 .buildFinished(new TestResilientModelAction(IdeaProject, ROOT_BUILD_FIRST), { capturedResult = it } as IntermediateResultHandler)
                 .build()
                 .withArguments(*extraGradleProperties)
-                .forTasks()
                 .run()
         }
 
@@ -199,7 +197,6 @@ class ResilientIdeaProjectCrossVersionSpec extends KotlinDslPluginRelatedTooling
                 .buildFinished(new TestResilientModelAction(IdeaProject, ROOT_BUILD_FIRST), { } as IntermediateResultHandler)
                 .build()
                 .withArguments(*extraGradleProperties)
-                .forTasks()
                 .run()
         }
 

@@ -87,7 +87,6 @@ class ResilientGradleProjectCrossVersionSpec extends KotlinDslPluginRelatedTooli
                 .buildFinished(new TestResilientModelAction(GradleProject, ROOT_BUILD_FIRST), { capturedResult = it } as IntermediateResultHandler)
                 .build()
                 .withArguments(*extraGradleProperties)
-                .forTasks()
                 .run()
         }
 
@@ -148,7 +147,6 @@ class ResilientGradleProjectCrossVersionSpec extends KotlinDslPluginRelatedTooli
                 .buildFinished(new TestResilientModelAction(GradleProject, ROOT_BUILD_FIRST), { capturedResult = it } as IntermediateResultHandler)
                 .build()
                 .withArguments(*extraGradleProperties)
-                .forTasks()
                 .run()
         }
 
