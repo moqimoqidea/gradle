@@ -130,8 +130,6 @@ public class ResilientBuildToolingModelController extends DefaultBuildToolingMod
                 Object model = canRunEvenIfProjectNotFullyConfigured(modelName)
                     ? Try.ofFailable(() -> buildModelWithParameter(parameter)).getOrMapFailure(failure -> null)
                     : null;
-                // The client sees this project's own recorded failure, not the whole-build aggregate that is otherwise
-                // handed to every project (gradle/gradle#38184); the build still fails on the aggregate, raised once at finish.
                 Throwable buildFailure = projectConfiguration.getFailure().get();
                 return configurationFailureResult(failureFactory, projectOwnConfigurationFailure(), buildFailure, model);
             }
