@@ -120,7 +120,8 @@ public class DefaultBuildTreeLifecycleController implements BuildTreeLifecycleCo
         }
         ExecutionResult<T> result = buildResult.withFailures(ExecutionResult.maybeFailed(modelBuilderFailures));
 
-        // Surface suppressed configuration failures only when the build isn't already failing to avoid duplicating same errors.
+        // A configuration failure is surfaced here only when the build isn't failing yet: if tasks were requested,
+        // and task execution fails the build, attaching the collected copy would very likely report the identical exception twice.
         if (buildResult.isSuccessful()) {
             List<Throwable> suppressedConfigurationFailures = new ArrayList<>(beforeTasksResult.getConfigurationFailures());
             suppressedConfigurationFailures.addAll(buildModelResult.getValue().getConfigurationFailures());
