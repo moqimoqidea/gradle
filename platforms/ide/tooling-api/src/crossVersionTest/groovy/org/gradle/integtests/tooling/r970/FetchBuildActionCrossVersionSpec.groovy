@@ -231,17 +231,6 @@ class FetchBuildActionCrossVersionSpec extends ToolingApiSpecification {
         }
     }
 
-    private static List<String> collectCauseMessages(Throwable throwable) {
-        def messages = []
-        Throwable current = throwable
-        int depth = 0
-        while (current != null && depth++ < 50) {
-            messages << current.message
-            current = current.cause
-        }
-        return messages
-    }
-
     def setupInitScriptWithCustomModelBuilder(String builderLogic = "return new CustomModel()") {
         file("init.gradle").text = """
             import org.gradle.tooling.provider.model.ToolingModelBuilderRegistry

@@ -90,14 +90,4 @@ class ResilientKotlinDslScriptsModelBuilderCrossVersionSpec extends KotlinDslPlu
         "with isolated projects"   | IP_FLAGS
     }
 
-    private static List<String> collectCauseMessages(Throwable throwable) {
-        def messages = []
-        Throwable current = throwable
-        int depth = 0
-        while (current != null && depth++ < 50) {
-            messages << current.message
-            current = current.cause
-        }
-        return messages
-    }
 }

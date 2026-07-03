@@ -150,17 +150,6 @@ class GradleDslBaseScriptModelCrossVersionSpec extends AbstractKotlinScriptModel
         "runtime"     | "throw RuntimeException(\"broken !!!\")" | /Settings file '.*?' line: 1\s+broken !!!/
     }
 
-    private static List<String> collectCauseMessages(Throwable throwable) {
-        def messages = []
-        Throwable current = throwable
-        int depth = 0
-        while (current != null && depth++ < 50) {
-            messages << current.message
-            current = current.cause
-        }
-        return messages
-    }
-
     static class FetchBaseModelAfterSettingsEvaluationAction implements BuildAction<FetchBaseModelLastActionResult>, Serializable {
 
         final ApiType apiType
