@@ -20,8 +20,11 @@ import org.gradle.integtests.tooling.fixture.TargetGradleVersion
 import org.gradle.integtests.tooling.fixture.ToolingApiSpecification
 import org.gradle.integtests.tooling.fixture.ToolingApiVersion
 import org.gradle.integtests.tooling.r930.FetchCustomModelAction
+import org.gradle.integtests.tooling.r930.FetchGradleBuildAction
+import org.gradle.integtests.tooling.r930.Result
 import org.gradle.test.fixtures.dsl.GradleDsl
 import org.gradle.tooling.BuildException
+import org.gradle.tooling.IntermediateResultHandler
 
 import static org.gradle.test.fixtures.dsl.GradleDsl.GROOVY
 import static org.gradle.test.fixtures.dsl.GradleDsl.KOTLIN
@@ -128,6 +131,87 @@ class FetchBuildActionCrossVersionSpec extends ToolingApiSpecification {
 
         combined:
         dsl << [GROOVY, KOTLIN]
+    }
+
+    def "resilient sync fails the build when a build-scoped model builder throws"() {
+        given:
+        settingsFile << "rootProject.name = 'root'"
+        file("init.gradle") << """
+            import org.gradle.tooling.provider.model.ToolingModelBuilderRegistry
+
+            class FailingBuildScopedModelBuilder implements org.gradle.tooling.provider.model.internal.BuildScopeModelBuilder {
+                boolean canBuild(String modelName) {
+                    return modelName == 'org.gradle.integtests.tooling.r16.CustomModel'
+                }
+                Object create(org.gradle.internal.build.BuildState target) {
+                    throw new RuntimeException("broken build-scoped builder")
+                }
+            }
+
+            beforeSettings { settings ->
+                settings.services.get(ToolingModelBuilderRegistry).register(new FailingBuildScopedModelBuilder())
+            }
+        """
+
+        when:
+        fails {
+            action(FetchCustomModelAction.withFetchModelCall())
+                .withArguments("--init-script=${file('init.gradle').absolutePath}")
+                .run()
+        }
+
+        then:
+        def e = thrown(BuildException)
+        collectCauseMessages(e).any { it?.contains("broken build-scoped builder") }
+    }
+
+    def "resilient sync fails the build but returns a partial GradleBuild model when root settings fail"() {
+        given:
+        settingsFile << """throw new RuntimeException("broken root settings")"""
+        Result<List<String>> fetchResult = null
+
+        when:
+        fails {
+            action()
+                .buildFinished(new FetchGradleBuildAction(), { fetchResult = it } as IntermediateResultHandler)
+                .build()
+                .run()
+        }
+
+        then: "the build fails with the settings failure"
+        def e = thrown(BuildException)
+        collectCauseMessages(e).any { it?.contains("broken root settings") }
+
+        and: "the client still receives the fetch result carrying the failure"
+        fetchResult != null
+        (fetchResult.failureMessages + fetchResult.causes).any { it?.contains("broken root settings") }
+    }
+
+    def "resilient sync fails the build but returns a partial GradleBuild model when included build settings fail"() {
+        given:
+        settingsFile << """
+            rootProject.name = 'root'
+            includeBuild("nested")
+        """
+        file("nested/settings.gradle") << """throw new RuntimeException("broken included settings")"""
+        Result<List<String>> fetchResult = null
+
+        when:
+        fails {
+            action()
+                .buildFinished(new FetchGradleBuildAction(), { fetchResult = it } as IntermediateResultHandler)
+                .build()
+                .run()
+        }
+
+        then: "the build fails with the settings failure"
+        def e = thrown(BuildException)
+        collectCauseMessages(e).any { it?.contains("broken included settings") }
+
+        and: "the client still receives a partial model carrying the failure"
+        fetchResult != null
+        fetchResult.modelValue == ['root']
+        (fetchResult.failureMessages + fetchResult.causes).any { it?.contains("broken included settings") }
     }
 
     private void writeBuildFile(GradleDsl dsl, String s) {

@@ -16,26 +16,28 @@
 
 package org.gradle.tooling.provider.model.internal;
 
+import com.google.common.collect.ImmutableList;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+
 /**
  * The outcome of building a model in a {@link ToolingModelScope}: the {@link #getClientResult() result returned to the
- * client} and, when resilient model building did not throw a failure straight away, the failure that must still fail
- * the build. At most one of {@link #getConfigurationFailure()} / {@link #getModelBuilderFailure()} is set. Keeping
- * these here rather than on the client result keeps the client result free of build-lifecycle concerns.
+ * client} and, when resilient model building did not throw a failure straight away, the failures that must still fail
+ * the build. Only one of the two failure kinds is present. Keeping these here rather than on the client result keeps
+ * the client result free of build-lifecycle concerns.
  */
 @NullMarked
 public final class ToolingModelScopeResult {
 
-    @Nullable
-    private final Throwable configurationFailure;
+    private final List<Throwable> configurationFailures;
     @Nullable
     private final Throwable modelBuilderFailure;
     private final ToolingModelBuilderResultInternal clientResult;
 
-    private ToolingModelScopeResult(@Nullable Throwable configurationFailure, @Nullable Throwable modelBuilderFailure, ToolingModelBuilderResultInternal clientResult) {
-        this.configurationFailure = configurationFailure;
+    private ToolingModelScopeResult(List<Throwable> configurationFailures, @Nullable Throwable modelBuilderFailure, ToolingModelBuilderResultInternal clientResult) {
+        this.configurationFailures = ImmutableList.copyOf(configurationFailures);
         this.modelBuilderFailure = modelBuilderFailure;
         this.clientResult = clientResult;
     }
@@ -44,29 +46,35 @@ public final class ToolingModelScopeResult {
      * The model built cleanly.
      */
     public static ToolingModelScopeResult of(ToolingModelBuilderResultInternal clientResult) {
-        return new ToolingModelScopeResult(null, null, clientResult);
+        return new ToolingModelScopeResult(ImmutableList.of(), null, clientResult);
     }
 
     /**
      * A project or the build itself failed to configure.
      */
     public static ToolingModelScopeResult withConfigurationFailure(ToolingModelBuilderResultInternal clientResult, Throwable failure) {
-        return new ToolingModelScopeResult(failure, null, clientResult);
+        return new ToolingModelScopeResult(ImmutableList.of(failure), null, clientResult);
+    }
+
+    /**
+     * One or more builds visited by a build-scoped builder failed to configure.
+     */
+    public static ToolingModelScopeResult withConfigurationFailures(ToolingModelBuilderResultInternal clientResult, List<Throwable> failures) {
+        return new ToolingModelScopeResult(failures, null, clientResult);
     }
 
     /**
      * A tooling model builder threw after its target project had configured successfully.
      */
     public static ToolingModelScopeResult withModelBuilderFailure(ToolingModelBuilderResultInternal clientResult, Throwable failure) {
-        return new ToolingModelScopeResult(null, failure, clientResult);
+        return new ToolingModelScopeResult(ImmutableList.of(), failure, clientResult);
     }
 
     /**
-     * A configuration failure hidden behind {@link #getClientResult() the result}, or {@code null} if none.
+     * Configuration failures hidden behind {@link #getClientResult() the result}, empty if none.
      */
-    @Nullable
-    public Throwable getConfigurationFailure() {
-        return configurationFailure;
+    public List<Throwable> getConfigurationFailures() {
+        return configurationFailures;
     }
 
     /**

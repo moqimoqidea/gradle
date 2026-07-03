@@ -22,6 +22,7 @@ import org.gradle.api.internal.project.ProjectInternal;
 import org.gradle.api.internal.project.ProjectState;
 import org.gradle.internal.Try;
 import org.gradle.internal.buildtree.ToolingModelRequestContext;
+import org.gradle.internal.problems.failure.Failure;
 import org.gradle.internal.problems.failure.FailureFactory;
 import org.gradle.tooling.provider.model.UnknownModelException;
 import org.gradle.tooling.provider.model.internal.ToolingModelBuilderLookup;
@@ -31,9 +32,11 @@ import org.gradle.tooling.provider.model.internal.ToolingModelScope;
 import org.gradle.tooling.provider.model.internal.ToolingModelScopeResult;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
 import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 
 public class ResilientBuildToolingModelController extends DefaultBuildToolingModelController {
 
@@ -62,7 +65,7 @@ public class ResilientBuildToolingModelController extends DefaultBuildToolingMod
 
     @Override
     protected ToolingModelScope createBuildScope(ToolingModelBuilderLookup.Builder builder) {
-        return new ResilientBuildToolingScope(builder);
+        return new ResilientBuildToolingScope(builder, failureFactory);
     }
 
     @Override
@@ -148,14 +151,28 @@ public class ResilientBuildToolingModelController extends DefaultBuildToolingMod
 
     private static class ResilientBuildToolingScope extends BuildToolingScope {
 
-        public ResilientBuildToolingScope(ToolingModelBuilderLookup.Builder builder) {
+        private final FailureFactory failureFactory;
+
+        public ResilientBuildToolingScope(ToolingModelBuilderLookup.Builder builder, FailureFactory failureFactory) {
             super(builder);
+            this.failureFactory = failureFactory;
         }
 
         @Override
         public ToolingModelScopeResult getModel(ToolingModelRequestContext modelRequestContext, @Nullable ToolingModelParameterCarrier parameter) {
-            // Do not throw failure if present opposed to BuildToolingScope
-            return ToolingModelScopeResult.of(buildModelWithParameter(parameter));
+            return Try.ofFailable(() -> buildScopeResult(parameter)).getOrMapFailure(failure -> {
+                ToolingModelBuilderResultInternal clientResult = ToolingModelBuilderResultInternal.of(null, ImmutableList.of(failureFactory.create(failure)));
+                return ToolingModelScopeResult.withModelBuilderFailure(clientResult, failure);
+            });
+        }
+
+        private ToolingModelScopeResult buildScopeResult(@Nullable ToolingModelParameterCarrier parameter) {
+            ToolingModelBuilderResultInternal clientResult = buildModelWithParameter(parameter);
+            // Failures attached by a build-scoped builder (e.g. GradleBuildBuilder) are configuration failures of the visited builds, so they must still fail the build.
+            List<Throwable> configurationFailures = clientResult.getFailures().stream()
+                .map(Failure::getOriginal)
+                .collect(toImmutableList());
+            return ToolingModelScopeResult.withConfigurationFailures(clientResult, configurationFailures);
         }
     }
 
