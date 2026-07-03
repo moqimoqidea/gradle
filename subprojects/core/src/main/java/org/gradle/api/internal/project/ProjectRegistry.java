@@ -35,6 +35,8 @@ public interface ProjectRegistry {
     // This is only here because it is used by the Develocity plugin in ImportJUnitXmlReports.
     // The ProjectRegistry and ProjectIdentifier types are legacy and should be
     // removed once we no longer support Develocity plugins that use this API.
+    // This is only used in DV plugin versions < 4.4.0. Once 4.4.0 becomes the
+    // minimum, we can remove this class and ProjectIdentifier.
     @Deprecated
     @UsedByScanPlugin("ImportJUnitXmlReports")
     @Nullable ProjectIdentifier getProject(String path);
