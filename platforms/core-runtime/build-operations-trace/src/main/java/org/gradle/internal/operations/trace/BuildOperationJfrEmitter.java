@@ -55,7 +55,7 @@ public class BuildOperationJfrEmitter implements Closeable {
      *
      * <p> A build operation may start on one thread and finish on another, therefore, we need a synchronized map
      */
-    private final Map<Long, BuildOperationJfrEvent> inFlightEvents = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, BuildOperationJfrEvent> inFlightEvents = new ConcurrentHashMap<>();
 
     public BuildOperationJfrEmitter(InternalOptions options, BuildOperationListenerManager manager) {
         Listener listener = null;
