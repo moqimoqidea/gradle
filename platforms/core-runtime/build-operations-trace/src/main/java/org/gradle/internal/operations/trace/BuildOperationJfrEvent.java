@@ -27,6 +27,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * JFR event describing a single Gradle build operation.
  */
+// NOTE: Because the project is used in workers (but not specifically this class), it's expected that this class will contain language level-related red squiggles
 @Name(BuildOperationJfrEvent.NAME)
 @Label("Build Operation")
 @Category({"Gradle", "Build Operations"})
@@ -71,16 +72,17 @@ class BuildOperationJfrEvent extends Event {
     long gradleEndTime;
 
     /**
+     * FQN of the exception class, or null
+     */
+    @Nullable
+    @Label("Failure Type")
+    String failureType;
+
+    /**
      * Message from the exception, or null
      */
     @Nullable
     @Label("Failure Message")
     String failureMessage;
 
-    /**
-     * FQN of the exception class, or null
-     */
-    @Nullable
-    @Label("Failure Type")
-    String failureType;
 }
