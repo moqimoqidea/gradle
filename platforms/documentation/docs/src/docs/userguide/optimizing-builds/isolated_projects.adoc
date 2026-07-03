@@ -711,17 +711,18 @@ Applying a convention plugin from a build registered via `pluginManagement.inclu
 ====
 
 [[sec:lifecycle_callbacks_with_included_plugin_builds]]
-===== Applying convention plugins from an included build
+===== Applying plugins from a lifecycle callback
 
-Plugins from a build registered via `pluginManagement.includeBuild(...)` are resolved lazily so they are built only when explicitly requested in a `plugins {}` block.
-When Gradle sees `plugins { id("my.convention") }`, it builds `my.convention` from the included build and exports the resulting classpath into the surrounding script's classloader scope.
+A `gradle.lifecycle.beforeProject` (or `afterProject`) callback can only apply a plugin that is already on the project's plugin classpath.
+The callback merely registers an action; it does not resolve plugins itself.
+So `apply(plugin = "...")` from a callback fails with `Plugin with id '...' not found` for any plugin that is resolved lazily — that is, only built or downloaded when a `plugins {}` block requests it — and that has not already been resolved onto a classloader scope the project inherits.
+This affects two common cases:
 
-There is a limitation however:
+- a convention plugin from a build registered via `pluginManagement.includeBuild(...)`, and
+- a third-party plugin from a repository, such as the Gradle Plugin Portal or a Maven repository.
 
-- Using a `plugins {}` block in `settings.gradle(.kts)` or any project script *works*, because the block itself triggers the build of the plugin.
-- Using the plugin from inside a `gradle.lifecycle.beforeProject` (or `afterProject`) callback registered in the settings script *does not work*.
-The callback only registers an action; it doesn't request anything.
-By the time the callback runs at project configuration, nothing has asked Gradle to build the plugin, so `apply(plugin = "...")` fails with `Plugin with id '...' not found`.
+Using such a plugin from a `plugins {}` block in `settings.gradle(.kts)` or any project script *works*, because the block itself triggers resolution.
+Using it from a lifecycle callback *does not*, because nothing has triggered resolution by the time the callback runs at project configuration.
 
 This limitation does not apply to `buildSrc/`: it is built eagerly and its classpath is exported to every project, so a `gradle.lifecycle.beforeProject` callback can apply a `buildSrc` convention plugin directly, with none of the workarounds below.
 Moving build logic into `buildSrc` solely to sidestep this limitation is not recommended, however; Gradle best practice is to <<best_practices_structuring_builds.adoc#favor_composite_builds,favor `build-logic` composite builds over `buildSrc`>>.
@@ -753,17 +754,53 @@ Apply the settings convention plugin from `settings.gradle(.kts)`:
 include::sample[dir="snippets/isolatedProjects/lifecycleSettingsPlugin/kotlin",files="settings.gradle.kts[tags=settings-file]"]
 include::sample[dir="snippets/isolatedProjects/lifecycleSettingsPlugin/groovy",files="settings.gradle[tags=settings-file]"]
 
-*Alternative: pre-resolve via the settings `plugins {}` block*
+*Pre-resolve in the settings `plugins {}` block*
 
-For simple cases where adding a settings plugin to your included build is unwarranted, declare the project convention plugin in the settings `plugins {}` block with `apply false`.
-This forces resolution at settings evaluation time and exports the classpath into the settings classloader scope, the parent of every project's scope, so the `beforeProject` callback can find the plugin:
+Declare the plugin in the settings `plugins {}` block with `apply false`.
+This forces resolution at settings evaluation time and exports the classpath into the settings classloader scope — the parent of every project's scope — without applying the plugin there, so the `beforeProject` callback can find it.
+This works for both cases above.
+For a convention plugin from an included build:
 
 include::sample[dir="snippets/isolatedProjects/lifecycleApplyFalse/kotlin",files="settings.gradle.kts[tags=settings-file]"]
 include::sample[dir="snippets/isolatedProjects/lifecycleApplyFalse/groovy",files="settings.gradle[tags=settings-file]"]
 
+For a third-party plugin from a repository, include the plugin version so it can be resolved (or declare the version in `pluginManagement { plugins { ... } }` and request it without a version here):
+
+[source,kotlin]
+.settings.gradle.kts
+----
+plugins {
+    id("com.example.foo") version "1.2.3" apply false
+}
+
+gradle.lifecycle.beforeProject {
+    apply(plugin = "com.example.foo")
+}
+----
+
+*Migrating from `allprojects {}`*
+
+Under Isolated Projects, applying a plugin to other projects from an `allprojects {}` (or `subprojects {}`) block in the root build script is not allowed, because it configures projects other than the one owning the script.
+A third-party plugin applied this way is usually declared with `apply false` in the *root build script*:
+
+[source,kotlin]
+.build.gradle.kts
+----
+plugins {
+    id("com.example.foo") version "1.2.3" apply false
+}
+
+allprojects {
+    apply(plugin = "com.example.foo")
+}
+----
+
+Replacing `allprojects {}` with a `gradle.lifecycle.beforeProject` callback is not enough on its own: the callback is registered in the settings script and runs against a classloader scope that does not see the root build script's classpath.
+The plugin declaration must move into `settings.gradle(.kts)` too, exactly as in the settings `plugins {}` workaround shown above.
+
 [NOTE]
 ====
-Both patterns are workarounds for the current implementation limitation listed under <<sec:current_limitations>>.
+These patterns are workarounds for the current implementation limitation listed under <<sec:current_limitations>>.
 ====
 
 [[sec:isolated_project_api]]
