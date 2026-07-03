@@ -248,7 +248,7 @@ The current implementation of Isolated Projects has a number of limitations that
 * The configuration phase might require more memory to process more work in parallel.
 * Changes to included builds invalidate all cached results, even unrelated ones.
 * Tooling model caching is local only: no sharing across checkouts or remote caching.
-* A `gradle.lifecycle.beforeProject` callback registered in `settings.gradle(.kts)` cannot directly apply a convention plugin from a build registered via `pluginManagement.includeBuild(...)`, because the callback alone does not trigger resolution of that plugin and the export of its classpath.
+* A `gradle.lifecycle.beforeProject` callback registered in `settings.gradle(.kts)` cannot directly apply a lazily-resolved plugin, such as a convention plugin from a build registered via `pluginManagement.includeBuild(...)` or a third-party plugin from a repository, because the callback alone does not trigger resolution of that plugin and the export of its classpath.
 See <<sec:lifecycle_callbacks_with_included_plugin_builds>> for working patterns.
 
 [[sec:constraints]]
@@ -707,7 +707,7 @@ include::sample[dir="snippets/structuring-builds/isolatedProjects-lifecycleApi/g
 [NOTE]
 ====
 The example above applies the `base` plugin, which ships with Gradle and is therefore always on the project's plugin classpath.
-Applying a convention plugin from a build registered via `pluginManagement.includeBuild(...)` is subject to a current limitation; see <<sec:lifecycle_callbacks_with_included_plugin_builds>>.
+Applying a plugin that is resolved lazily, such as a convention plugin from a build registered via `pluginManagement.includeBuild(...)` or a third-party plugin from a repository, is subject to a current limitation; see <<sec:lifecycle_callbacks_with_included_plugin_builds>>.
 ====
 
 [[sec:lifecycle_callbacks_with_included_plugin_builds]]
