@@ -16,7 +16,7 @@
 
 package org.gradle.internal.serialize.graph
 
-import org.gradle.internal.configuration.problems.DocumentationSection
+import org.gradle.internal.deprecation.DeprecationLogger
 import org.gradle.internal.extensions.stdlib.uncheckedCast
 import org.gradle.internal.extensions.stdlib.useToRun
 import org.gradle.internal.serialize.BaseSerializerFactory
@@ -389,22 +389,23 @@ val customImplementationExceptions = setOf(
 
 
 /**
- * Reports a configuration cache problem when [actualType] is a custom descendant of one of the [supportedTypes]
+ * Emits a deprecation when [actualType] is a custom descendant of one of the [supportedTypes]
  * a codec serializes specially. The codec is only reached because dispatch matched [actualType] to one of these
  * base types, so anything that is not exactly one of them is a custom descendant that will be restored as a
  * standard [kind] (collection/map) — losing its custom behavior. The first supported type is used as the base
  * type in the message (e.g. `HashSet` for `HashSet`/`LinkedHashSet`).
  */
-fun IsolateContext.warnAboutCustomImplementation(actualType: Class<*>, kind: String, supportedTypes: Array<out Class<*>>) {
+fun warnAboutCustomImplementation(actualType: Class<*>, kind: String, supportedTypes: Array<out Class<*>>) {
     if (actualType in supportedTypes || actualType.name in customImplementationExceptions) {
         return
     }
     val baseType = supportedTypes.firstOrNull() ?: return
-    logPropertyProblem("serialize", DocumentationSection.RequirementsCustomCollectionTypes, logDeprecation = true) {
-        text("serializing a custom $kind type ")
-        reference(actualType)
-        text(", a subtype of ")
-        reference(baseType)
-        text(", which will be restored as a standard $kind, losing any custom behavior.")
-    }
+    DeprecationLogger
+        .deprecateBehaviour(
+            "Serializing a custom $kind type '${actualType.name}', a subtype of '${baseType.name}', " +
+                "which will be restored as a standard $kind, losing any custom behavior."
+        )
+        .willBecomeAnErrorInGradle10()
+        .withUserManual("configuration_cache_requirements", "config_cache:requirements:custom_collection_types")
+        .nagUser()
 }
