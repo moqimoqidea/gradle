@@ -82,7 +82,7 @@ class IsolatedProjectsInjectedServicesIntegrationTest extends AbstractIsolatedPr
         """
 
         when:
-        isolatedProjectsFailsUsing mode, ":help"
+        isolatedProjectsFailsUsing mode, "help"
 
         then:
         fixture.assertIsolatedProjectsProblems(mode) {
