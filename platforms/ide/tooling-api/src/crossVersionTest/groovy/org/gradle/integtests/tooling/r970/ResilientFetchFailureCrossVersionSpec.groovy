@@ -158,6 +158,32 @@ class CustomPlugin implements Plugin<Project> {
         result.rootDescriptionByProject['c'].contains("Caused by:")
     }
 
+    def "a configuration failure attached to every fetched project fails the build only once"() {
+        given: "a project failing eager configuration, with no other failure source"
+        settingsKotlinFile.text = """
+            rootProject.name = "root"
+            include("a", "b", "c")
+        """
+        file("b/build.gradle.kts").text = """
+            error("boom during configuration of b")
+        """
+        file("c/build.gradle.kts").text = """
+            plugins {
+                id("java")
+            }
+        """
+
+        when:
+        fetchFailures()
+
+        then: "the same configuration failure is delivered to every project's fetch result"
+        def e = thrown(BuildException)
+        fetchResult.failedToQueryProjects.toSet() == ['root', 'a', 'b', 'c'] as Set
+
+        and: "the build fails with that failure only once"
+        countCauseMessages(e, "boom during configuration of b") == 1
+    }
+
     private void fetchFailures(List<String> extraGradleProperties = []) {
         fails {
             action()
@@ -166,5 +192,21 @@ class CustomPlugin implements Plugin<Project> {
                 .withArguments("--init-script=${file('init.gradle').absolutePath}", *extraGradleProperties)
                 .run()
         }
+    }
+
+    /**
+     * Counts how many failures in the whole failure tree carry the given message, following all causes of
+     * multi-cause exceptions rather than just the first one.
+     */
+    private static int countCauseMessages(Throwable throwable, String text, int depth = 0) {
+        if (throwable == null || depth > 50) {
+            return 0
+        }
+        int count = throwable.message == text ? 1 : 0
+        def causes = throwable.respondsTo('getCauses')
+            ? throwable.causes
+            : (throwable.cause != null ? [throwable.cause] : [])
+        causes.each { count += countCauseMessages(it as Throwable, text, depth + 1) }
+        return count
     }
 }
