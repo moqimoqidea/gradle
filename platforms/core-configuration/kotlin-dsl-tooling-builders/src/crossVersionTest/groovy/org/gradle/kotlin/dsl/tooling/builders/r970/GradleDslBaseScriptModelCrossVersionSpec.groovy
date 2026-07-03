@@ -22,7 +22,9 @@ import org.gradle.kotlin.dsl.tooling.builders.AbstractKotlinScriptModelCrossVers
 import org.gradle.tooling.BuildAction
 import org.gradle.tooling.BuildController
 import org.gradle.tooling.BuildException
+import org.gradle.tooling.IntermediateResultHandler
 import org.gradle.tooling.model.dsl.GradleDslBaseScriptModel
+import org.gradle.tooling.model.gradle.GradleBuild
 import org.gradle.tooling.model.kotlin.dsl.KotlinDslScriptsModel
 
 /**
@@ -38,19 +40,31 @@ import org.gradle.tooling.model.kotlin.dsl.KotlinDslScriptsModel
 @TargetGradleVersion(">=9.7.0")
 class GradleDslBaseScriptModelCrossVersionSpec extends AbstractKotlinScriptModelCrossVersionTest {
 
-    def "fetching a model after a project #typeOfFailure failure fails the build"() {
+    def "GradleDslBaseScriptModel can be obtained via fetch even after a project #typeOfFailure failure, but the build fails"() {
         given:
         buildFileKts << error
 
+        def result = null
+
         when:
         fails {
-            action(new FetchBaseModelAfterProjectConfigurationAction(ApiType.FETCH))
+            action()
+                .buildFinished(new FetchBaseModelAfterProjectConfigurationAction(ApiType.FETCH), { result = it } as IntermediateResultHandler)
+                .build()
+                .forTasks()
                 .run()
         }
 
-        then:
+        then: "the build fails with the project configuration failure"
         def e = thrown(BuildException)
         collectCauseMessages(e).any { it?.contains("broken !!!") }
+
+        and: "the base script model is still obtained"
+        result.errorsBeforeBaseModel.size() == 1
+        result.errorsBeforeBaseModel[0].contains("A problem occurred configuring root project")
+        result.baseModel != null
+        result.baseModel.groovyDslBaseScriptModel != null
+        result.baseModel.kotlinDslBaseScriptModel != null
 
         where:
         typeOfFailure | error
@@ -81,6 +95,61 @@ class GradleDslBaseScriptModelCrossVersionSpec extends AbstractKotlinScriptModel
         "runtime"     | "throw RuntimeException(\"broken !!!\")"
     }
 
+    def "GradleDslBaseScriptModel can be obtained via fetch even after a settings #typeOfFailure failure, but the build fails"() {
+        given:
+        settingsFileKts << error
+
+        def result = null
+
+        when:
+        fails {
+            action()
+                .buildFinished(new FetchBaseModelAfterSettingsEvaluationAction(ApiType.FETCH), { result = it } as IntermediateResultHandler)
+                .build()
+                .forTasks()
+                .run()
+        }
+
+        then: "the build fails with the settings failure"
+        def e = thrown(BuildException)
+        collectCauseMessages(e).any { it?.contains("broken !!!") }
+
+        and: "the base script model is still obtained"
+        result.errorsBeforeBaseModel.size() == 1
+        result.errorsBeforeBaseModel[0] =~ expectedReportedError
+        result.baseModel != null
+        result.baseModel.groovyDslBaseScriptModel != null
+        result.baseModel.kotlinDslBaseScriptModel != null
+
+        where:
+        typeOfFailure | error                                    | expectedReportedError
+        "compilation" | "broken !!!"                             | /Script compilation error:\s+Line 1: broken !!!/
+        "runtime"     | "throw RuntimeException(\"broken !!!\")" | /Settings file '.*?' line: 1\s+broken !!!/
+    }
+
+    def "GradleDslBaseScriptModel is still obtained via getModel even after a settings #typeOfFailure failure"() {
+        given:
+        settingsFileKts << error
+
+        when:
+        def result = succeeds {
+            action(new FetchBaseModelAfterSettingsEvaluationAction(ApiType.GET_MODEL))
+                .run()
+        }
+
+        then:
+        result.errorsBeforeBaseModel.size() == 1
+        result.errorsBeforeBaseModel[0] =~ expectedReportedError
+        result.baseModel != null
+        result.baseModel.groovyDslBaseScriptModel != null
+        result.baseModel.kotlinDslBaseScriptModel != null
+
+        where:
+        typeOfFailure | error                                    | expectedReportedError
+        "compilation" | "broken !!!"                             | /Script compilation error:\s+Line 1: broken !!!/
+        "runtime"     | "throw RuntimeException(\"broken !!!\")" | /Settings file '.*?' line: 1\s+broken !!!/
+    }
+
     private static List<String> collectCauseMessages(Throwable throwable) {
         def messages = []
         Throwable current = throwable
@@ -90,6 +159,34 @@ class GradleDslBaseScriptModelCrossVersionSpec extends AbstractKotlinScriptModel
             current = current.cause
         }
         return messages
+    }
+
+    static class FetchBaseModelAfterSettingsEvaluationAction implements BuildAction<FetchBaseModelLastActionResult>, Serializable {
+
+        final ApiType apiType
+
+        FetchBaseModelAfterSettingsEvaluationAction(ApiType apiType) {
+            this.apiType = apiType
+        }
+
+        @Override
+        FetchBaseModelLastActionResult execute(BuildController controller) {
+            def model
+            List<String> failures = []
+            if (apiType == ApiType.FETCH) {
+                def result = controller.fetch(GradleBuild)
+                failures = result.failures.collect { it.message }
+                model = controller.fetch(GradleDslBaseScriptModel).model
+            } else {
+                try {
+                    controller.getModel(GradleBuild)
+                } catch (Exception e) {
+                    failures.add(e.message)
+                }
+                model = controller.getModel(GradleDslBaseScriptModel)
+            }
+            return new FetchBaseModelLastActionResult(failures, model)
+        }
     }
 
     static class FetchBaseModelAfterProjectConfigurationAction implements BuildAction<FetchBaseModelLastActionResult>, Serializable {
