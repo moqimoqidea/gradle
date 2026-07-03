@@ -403,7 +403,7 @@ fun warnAboutCustomImplementation(actualType: Class<*>, kind: String, supportedT
     DeprecationLogger
         .deprecateBehaviour(
             "Serializing a custom $kind type '${actualType.name}', a subtype of '${baseType.name}', " +
-                "which will be restored as a standard $kind, losing any custom behavior."
+                "which will be restored as a standard $kind, losing any custom state and behavior."
         )
         .willBecomeAnErrorInGradle10()
         .withUserManual("configuration_cache_requirements", "config_cache:requirements:custom_collection_types")

@@ -16,9 +16,11 @@
 
 package org.gradle.internal.cc.impl
 
+import com.google.common.collect.ImmutableBiMap
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
 import com.google.common.collect.ImmutableSet
+import com.google.common.collect.ImmutableSortedSet
 import org.gradle.api.file.ArchiveOperations
 import org.gradle.api.file.FileSystemOperations
 import org.gradle.api.model.ObjectFactory
@@ -149,7 +151,7 @@ class ConfigurationCacheSupportedTypesIntegrationTest extends AbstractConfigurat
 
         when:
         executer.expectDocumentedDeprecationWarning(
-            "Serializing a custom $kind type '$concreteType', a subtype of '$baseType', which will be restored as a standard $kind, losing any custom behavior. " +
+            "Serializing a custom $kind type '$concreteType', a subtype of '$baseType', which will be restored as a standard $kind, losing any custom state and behavior. " +
                 "This behavior has been deprecated. This will fail with an error in Gradle 10. " +
                 "For more information, please refer to https://docs.gradle.org/current/userguide/configuration_cache_requirements.html#config_cache:requirements:custom_collection_types in the Gradle documentation."
         )
@@ -309,10 +311,52 @@ class ConfigurationCacheSupportedTypesIntegrationTest extends AbstractConfigurat
         outputContains("guava value = ${output}")
 
         where:
-        type          | reference                         | output
-        ImmutableList | "ImmutableList.of('a', 'b', 'c')" | "[a, b, c]"
-        ImmutableSet  | "ImmutableSet.of('a', 'b', 'c')"  | "[a, b, c]"
-        ImmutableMap  | "ImmutableMap.of(1, 'a', 2, 'b')" | "[1:a, 2:b]"
+        type               | reference                              | output
+        ImmutableList      | "ImmutableList.of('a', 'b', 'c')"      | "[a, b, c]"
+        ImmutableSet       | "ImmutableSet.of('a', 'b', 'c')"       | "[a, b, c]"
+        ImmutableMap       | "ImmutableMap.of(1, 'a', 2, 'b')"      | "[1:a, 2:b]"
+        ImmutableSortedSet | "ImmutableSortedSet.of('a', 'b', 'c')" | "[a, b, c]"
+        ImmutableBiMap     | "ImmutableBiMap.of(1, 'a', 2, 'b')"    | "[1:a, 2:b]"
+    }
+
+    def "a custom #iface implementation is serialized as a bean and survives the roundtrip"() {
+        def configurationCache = newConfigurationCacheFixture()
+        buildFile << """
+            class MyColl implements $iface {
+                @Delegate final $iface delegate = $init
+            }
+
+            class SomeTask extends DefaultTask {
+                private final $iface value = new MyColl()
+
+                @TaskAction
+                void run() {
+                    println "value class = " + value.getClass().name + " content = " + value
+                }
+            }
+
+            task ok(type: SomeTask)
+        """
+
+        when:
+        configurationCacheRun "ok"
+
+        then:
+        configurationCache.assertStateStored()
+        outputContains("value class = MyColl content = $content")
+
+        when:
+        configurationCacheRun "ok"
+
+        then:
+        configurationCache.assertStateLoaded()
+        outputContains("value class = MyColl content = $content")
+
+        where:
+        iface                  | init                     | content
+        "List<String>"         | "['a', 'b', 'c']"        | "[a, b, c]"
+        "Set<String>"          | "['a', 'b', 'c'] as Set" | "[a, b, c]"
+        "Map<String, Integer>" | "[a: 1, b: 2]"           | "[a:1, b:2]"
     }
 
     def "restores task fields whose value is service of type #type"() {
