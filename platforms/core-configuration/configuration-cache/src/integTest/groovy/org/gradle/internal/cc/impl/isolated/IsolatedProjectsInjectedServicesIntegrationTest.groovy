@@ -25,6 +25,8 @@ class IsolatedProjectsInjectedServicesIntegrationTest extends AbstractIsolatedPr
         """
         buildFile """
             import javax.inject.Inject
+            import org.gradle.api.internal.GradleInternal
+            import org.gradle.execution.taskgraph.TaskExecutionGraphInternal
 
             abstract class MyTask extends DefaultTask {
                 @Inject
@@ -45,13 +47,15 @@ class IsolatedProjectsInjectedServicesIntegrationTest extends AbstractIsolatedPr
         then:
         fixture.assertIsolatedProjectsProblems(mode) {
             projectsConfigured(":", ":a")
-            problem("Build file 'build.gradle': line 13: $expectedProblem")
+            problem("Build file 'build.gradle': line 15: $expectedProblem")
         }
 
         where:
-        service              | prohibitedInvocation                   | expectedProblem
-        "Gradle"             | "plugins"                              | "Project ':' cannot access Gradle.getPlugins"
-        "TaskExecutionGraph" | "whenReady { g -> g.hasTask(':a:x') }" | "Project ':' cannot access the tasks in the task graph that were created by other projects"
+        service                      | prohibitedInvocation                   | expectedProblem
+        "Gradle"                     | "plugins"                              | "Project ':' cannot access Gradle.getPlugins"
+        "GradleInternal"             | "plugins"                              | "Project ':' cannot access Gradle.getPlugins"
+        "TaskExecutionGraph"         | "whenReady { g -> g.hasTask(':a:x') }" | "Project ':' cannot access the tasks in the task graph that were created by other projects"
+        "TaskExecutionGraphInternal" | "whenReady { g -> g.hasTask(':a:x') }" | "Project ':' cannot access the tasks in the task graph that were created by other projects"
 
         combined:
         mode << ALL_MODES
@@ -64,6 +68,8 @@ class IsolatedProjectsInjectedServicesIntegrationTest extends AbstractIsolatedPr
         """
         buildFile """
             import javax.inject.Inject
+            import org.gradle.api.internal.GradleInternal
+            import org.gradle.execution.taskgraph.TaskExecutionGraphInternal
 
             class MyPlugin implements Plugin<Project> {
                 private final $service service
@@ -87,13 +93,15 @@ class IsolatedProjectsInjectedServicesIntegrationTest extends AbstractIsolatedPr
         then:
         fixture.assertIsolatedProjectsProblems(mode) {
             projectsConfigured(":", ":a")
-            problem("Build file 'build.gradle': line 13: $expectedProblem")
+            problem("Build file 'build.gradle': line 15: $expectedProblem")
         }
 
         where:
-        service              | prohibitedInvocation                   | expectedProblem
-        "Gradle"             | "plugins"                              | "Project ':' cannot access Gradle.getPlugins"
-        "TaskExecutionGraph" | "whenReady { g -> g.hasTask(':a:x') }" | "Project ':' cannot access the tasks in the task graph that were created by other projects"
+        service                      | prohibitedInvocation                   | expectedProblem
+        "Gradle"                     | "plugins"                              | "Project ':' cannot access Gradle.getPlugins"
+        "GradleInternal"             | "plugins"                              | "Project ':' cannot access Gradle.getPlugins"
+        "TaskExecutionGraph"         | "whenReady { g -> g.hasTask(':a:x') }" | "Project ':' cannot access the tasks in the task graph that were created by other projects"
+        "TaskExecutionGraphInternal" | "whenReady { g -> g.hasTask(':a:x') }" | "Project ':' cannot access the tasks in the task graph that were created by other projects"
 
         combined:
         mode << ALL_MODES
@@ -106,6 +114,8 @@ class IsolatedProjectsInjectedServicesIntegrationTest extends AbstractIsolatedPr
         """
         buildFile """
             import javax.inject.Inject
+            import org.gradle.api.internal.GradleInternal
+            import org.gradle.execution.taskgraph.TaskExecutionGraphInternal
 
             abstract class MyBean {
                 @Inject
@@ -121,13 +131,15 @@ class IsolatedProjectsInjectedServicesIntegrationTest extends AbstractIsolatedPr
         then:
         fixture.assertIsolatedProjectsProblems(mode) {
             projectsConfigured(":", ":a")
-            problem("Build file 'build.gradle': line 9: $expectedProblem")
+            problem("Build file 'build.gradle': line 11: $expectedProblem")
         }
 
         where:
-        service              | prohibitedInvocation                   | expectedProblem
-        "Gradle"             | "plugins"                              | "Project ':' cannot access Gradle.getPlugins"
-        "TaskExecutionGraph" | "whenReady { g -> g.hasTask(':a:x') }" | "Project ':' cannot access the tasks in the task graph that were created by other projects"
+        service                      | prohibitedInvocation                   | expectedProblem
+        "Gradle"                     | "plugins"                              | "Project ':' cannot access Gradle.getPlugins"
+        "GradleInternal"             | "plugins"                              | "Project ':' cannot access Gradle.getPlugins"
+        "TaskExecutionGraph"         | "whenReady { g -> g.hasTask(':a:x') }" | "Project ':' cannot access the tasks in the task graph that were created by other projects"
+        "TaskExecutionGraphInternal" | "whenReady { g -> g.hasTask(':a:x') }" | "Project ':' cannot access the tasks in the task graph that were created by other projects"
 
         combined:
         mode << ALL_MODES

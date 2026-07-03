@@ -17,7 +17,6 @@
 package org.gradle.internal.service.scopes;
 
 import org.gradle.api.component.SoftwareComponentContainer;
-import org.gradle.api.execution.TaskExecutionGraph;
 import org.gradle.api.file.ProjectLayout;
 import org.gradle.api.internal.CollectionCallbackActionDecorator;
 import org.gradle.api.internal.GradleInternal;
@@ -70,7 +69,6 @@ import org.gradle.api.internal.tasks.TaskDependencyUsageTracker;
 import org.gradle.api.internal.tasks.TaskResolver;
 import org.gradle.api.internal.tasks.TaskStatistics;
 import org.gradle.api.internal.tasks.properties.TaskScheme;
-import org.gradle.api.invocation.Gradle;
 import org.gradle.api.problems.internal.ProblemsInternal;
 import org.gradle.api.tasks.util.internal.PatternSetFactory;
 import org.gradle.configuration.ConfigurationTargetIdentifier;
@@ -327,12 +325,12 @@ public class ProjectScopeServices implements ServiceRegistrationProvider {
     }
 
     @Provides
-    protected Gradle createProjectScopedGradle(GradleInternal gradle, CrossProjectModelAccess crossProjectModelAccess) {
+    protected GradleInternal decorateGradle(GradleInternal gradle, CrossProjectModelAccess crossProjectModelAccess) {
         return crossProjectModelAccess.gradleInstanceForProject(project.getProjectIdentity(), gradle);
     }
 
     @Provides
-    protected TaskExecutionGraph createProjectScopedTaskExecutionGraph(TaskExecutionGraphInternal taskGraph, CrossProjectModelAccess crossProjectModelAccess) {
+    protected TaskExecutionGraphInternal decorateTaskExecutionGraph(TaskExecutionGraphInternal taskGraph, CrossProjectModelAccess crossProjectModelAccess) {
         return crossProjectModelAccess.taskGraphForProject(project.getProjectIdentity(), taskGraph);
     }
 
