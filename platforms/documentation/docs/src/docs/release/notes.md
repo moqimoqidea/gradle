@@ -246,6 +246,11 @@ tasks.withType<AbstractArchiveTask>().configureEach {
 }
 ```
 
+#### New APIs on `ResolvedArtifactResult`
+
+The [`ResolvedArtifactResult.getAttributes()`](javadoc/org/gradle/api/artifacts/result/ResolvedArtifactResult.html#getAttributes()) and [`ResolvedArtifactResult.getCapabilities()`](javadoc/org/gradle/api/artifacts/result/ResolvedArtifactResult.html#getCapabilities()) methods have been introduced to provide access to the attributes and capabilities of a resolved artifact without going through the [`ResolvedArtifactResult.getVariant()`](javadoc/org/gradle/api/artifacts/result/ResolvedArtifactResult.html#getVariant()) method.
+`ResolvedArtifactResult.getVariant()` is still available, but will be deprecated in a future release.
+
 See the [Timestamp for files inside archives](userguide/working_with_files.html#sec:reproducible_timestamp) section in the Gradle User Manual for more details.
 
 #### New `getInputStream()` method on `BuildCacheEntryWriter`
@@ -320,6 +325,26 @@ Gradle provides a comprehensive plugin system, including built-in [Core Plugins]
 ### Security and infrastructure
 Gradle provides robust [security features and underlying infrastructure](userguide/security.html) to ensure that builds are secure, reproducible, and easy to maintain.
 
+#### Document the origin and reason of trusted PGP keys
+
+Gradle’s [dependency verification](userguide/dependency_verification.html) helps you mitigate security risks by ensuring downloaded artifacts match expected checksums or are signed with trusted keys.
+
+Dependency verification metadata already lets you [annotate checksums](userguide/dependency_verification.html#sec:trusting-artifacts) with `origin` and `reason` attributes to document where a checksum was obtained and why it is trusted.
+
+Starting with this release, the same `origin` and `reason` attributes are also supported on the `<trusted-key>` and `<pgp>` elements, so you can record where a public key was verified (for example, the URL it was downloaded from) directly alongside the key:
+
+```xml
+<trusted-keys>
+   <trusted-key id="8756c4f765c9ac3cb6b85d62379ce192d401ab61"
+                group="com.github.javaparser"
+                origin="https://keyserver.ubuntu.com"
+                reason="Verified against the maintainer's website"/>
+</trusted-keys>
+```
+
+These attributes are purely informational: Gradle preserves them across read/write cycles but never uses them during verification.
+Existing verification metadata files continue to be read without changes; files written by this version of Gradle use the new `dependency-verification-1.4.xsd` schema.
+
 #### Dependency verification reports other trusted keys for the same module or group
 
 When [dependency verification](userguide/dependency_verification.html) fails because an artifact was signed with a key that could not be found on any key server, it can be hard to tell whether you are pulling a brand-new dependency for the first time or whether a previously trusted dependency has had its signing key rotated.
@@ -353,6 +378,23 @@ Builds that use a remote Build Cache will regenerate accessors locally instead o
 Kotlin DSL script compilation continues to be cached as before.
 
 See the [Type-safe model accessors](userguide/kotlin_dsl.html#type-safe-accessors) section in the Gradle User Manual for more details.
+
+#### File system watching now works with a custom project cache directory
+
+[File system watching](userguide/file_system_watching.html) lets Gradle skip work between builds by tracking file changes from the operating system.
+The project cache directory, by default `.gradle/` in the root project, stores per-project state that Gradle reuses across builds.
+
+Some teams move this state out of the project tree using `--project-cache-dir` or `org.gradle.projectcachedir`, for example to keep build state on a separate or faster file system, or to share a project across users on CI.
+Until now, doing so was incompatible with file system watching, so these users could not benefit from it.
+
+Gradle has decoupled the two.
+File system watching works with any project cache directory location, including one on a file system that does not support watching:
+
+```bash
+$ ./gradlew build --watch-fs --project-cache-dir /custom/path
+```
+
+See the [Excluding files and directories](userguide/file_system_watching.html#sec:excluding_files_and_directories) section in the Gradle User Manual for more details.
 
 <!-- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ADD RELEASE FEATURES ABOVE
