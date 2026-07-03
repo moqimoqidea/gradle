@@ -50,7 +50,8 @@ As a result, a custom project cache directory no longer disables file system wat
 Previously, `--project-cache-dir` (or `org.gradle.projectcachedir`) was incompatible with watching: passing `--watch-fs` alongside it failed the build, and leaving watching at its default silently disabled it.
 File system watching now follows the usual rules regardless of where the project cache directory is located.
 
-This also applies to source-dependency check-outs, which live under the project cache directory: their roots are no longer registered as watchable hierarchies.
+This applies to the project cache directory itself.
+Source-dependency check-outs, which live under the project cache directory but whose contents can change externally, remain watched as regular build directories.
 
 See <<file_system_watching.adoc#sec:excluding_files_and_directories,Excluding files and directories>> for details.
 
