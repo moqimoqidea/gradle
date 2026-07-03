@@ -34,6 +34,7 @@ dependencies {
     implementation(projects.graphIsolation)
     implementation(projects.logging)
     implementation(projects.modelCore)
+    implementation(projects.reflectionServices)
     implementation(projects.serviceLookup)
     implementation(projects.serviceProvider)
     implementation(projects.stdlibJavaExtensions)
