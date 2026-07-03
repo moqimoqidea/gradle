@@ -83,8 +83,8 @@ public class DefaultBuildTreeLifecycleController implements BuildTreeLifecycleCo
     @Override
     public <T> T fromBuildModel(boolean runTasks, BuildTreeModelAction<? extends T> action) {
         return runBuild(() -> {
-            // Run before tasks (the projectsLoaded phase). If it throws, skip tasks and the model action, but still
-            // fail the build with whatever failures it collected before throwing.
+            // Run before tasks (the projectsLoaded phase). If it throws, skip tasks and the model action and fail
+            // the build with the thrown failure.
             ExecutionResult<BuildTreeModelCreatorResult<Void>> beforeTasksResult = runModelAction(() -> modelCreator.beforeTasks(action));
             if (!beforeTasksResult.isSuccessful()) {
                 return beforeTasksResult.<T>asFailure();
@@ -113,12 +113,13 @@ public class DefaultBuildTreeLifecycleController implements BuildTreeLifecycleCo
         ExecutionResult<T> buildResult = modelResult.withFailures(taskRunResult);
 
         // Model builder failures held behind partial results always fail the build. They come from both phases, but
-        // from fromBuildModel only when it produced a result rather than throwing.
+        // from fromBuildModel only when it produced a result rather than throwing. Both phases can observe the same
+        // failure instance when a cached model is returned for both, so report it only once.
         List<Throwable> modelBuilderFailures = new ArrayList<>(beforeTasksResult.getModelBuilderFailures());
         if (buildModelResult.isSuccessful()) {
             modelBuilderFailures.addAll(buildModelResult.getValue().getModelBuilderFailures());
         }
-        ExecutionResult<T> result = buildResult.withFailures(ExecutionResult.maybeFailed(modelBuilderFailures));
+        ExecutionResult<T> result = buildResult.withFailures(ExecutionResult.maybeFailed(modelBuilderFailures.stream().distinct().collect(Collectors.toList())));
 
         // A configuration failure is surfaced here only when the build isn't failing yet: if tasks were requested,
         // and task execution fails the build, attaching the collected copy would very likely report the identical exception twice.

@@ -112,7 +112,7 @@ class ResilientGradleBuildBuilderCrossVersionSpec extends KotlinDslPluginRelated
         result.model.includedBuilds.empty
         result.model.editableBuilds.empty
         result.model.rootProject.projectIdentifier.projectPath == ":"
-        result.model.rootProject.name == expectedRootProjectName ?: settingsKotlinFile.parentFile.name
+        result.model.rootProject.name == (expectedRootProjectName ?: settingsKotlinFile.parentFile.name)
         result.model.projects == [result.model.rootProject] as Set
 
         where:
