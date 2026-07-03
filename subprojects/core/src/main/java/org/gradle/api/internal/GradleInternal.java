@@ -44,7 +44,8 @@ import java.util.function.Supplier;
  * consumption.
  */
 @UsedByScanPlugin
-@ServiceScope(Scope.Build.class)
+// Public `Gradle` service shadowed at the project scope by the IP reporting wrapper
+@ServiceScope({Scope.Build.class, Scope.Project.class})
 public interface GradleInternal extends Gradle, PluginAwareInternal {
 
     @Override
