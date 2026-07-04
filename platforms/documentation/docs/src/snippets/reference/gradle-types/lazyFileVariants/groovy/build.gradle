@@ -1,0 +1,17 @@
+plugins {
+    id 'java'
+}
+
+// tag::lazy-javadoc-destination[]
+tasks.named('javadoc', Javadoc) {
+    // Lazy variant: wire from another provider without forcing eager evaluation.
+    destinationDirectory = layout.buildDirectory.dir('docs/javadoc')
+}
+// end::lazy-javadoc-destination[]
+
+tasks.register('verifyJavadocDestination') {
+    def destination = tasks.named('javadoc', Javadoc).flatMap { it.destinationDirectory }
+    doLast {
+        println("javadoc destination: ${destination.get().asFile.toPath().toString().replace(projectDir.toPath().toString() + File.separator, '')}")
+    }
+}
