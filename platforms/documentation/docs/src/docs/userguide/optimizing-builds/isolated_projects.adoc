@@ -881,8 +881,8 @@ gradle.lifecycle.beforeProject {
 [[sec:guarding_build_logic]]
 ==== Guard incompatible build logic as a last resort
 
-During adoption you may hit build logic that is not yet compatible with Isolated Projects and that you cannot fix right away — for example, a piece of your own plugin, or a third-party plugin that is not essential to every workflow.
-As a last resort, you can _guard_ such logic so that it only runs when Isolated Projects is not active.
+During adoption, some build logic may not yet be compatible with Isolated Projects and cannot be fixed immediately — for example, a plugin that is still being migrated, or a third-party plugin that is not essential to every workflow.
+As a last resort, such logic can be _guarded_ so that it only runs when Isolated Projects is not active.
 
 [WARNING]
 ====
@@ -891,8 +891,8 @@ Prefer the refactoring strategies above.
 A conditional makes the build behave differently depending on whether Isolated Projects is active, which raises complexity, can hide problems, and can lead to different build results between the two modes.
 ====
 
-To detect whether Isolated Projects is active, inject the link:{javadocPath}/org/gradle/api/configuration/BuildFeatures.html[`BuildFeatures`] service and read `isolatedProjects.active`, whose value is always defined.
-See <<implementing_gradle_plugins_binary.adoc#sec:reacting_to_build_features,Reacting to build features>> for details on this API.
+To detect whether Isolated Projects is active, inject the link:{javadocPath}/org/gradle/api/configuration/BuildFeatures.html[`BuildFeatures`] service and read `isolatedProjects.active`.
+See <<implementing_gradle_plugins_binary.adoc#reacting_to_build_features,Reacting to build features>> for details on this API.
 
 [[sec:guard_own_plugin]]
 ===== Guard logic inside your own plugin
@@ -904,7 +904,7 @@ Guard the incompatible part of a plugin with an early return, so the rest of the
 include::{snippetsPath}/isolatedProjects/guardingBuildLogic/common/buildSrc/src/main/java/com/example/GuardedConventionPlugin.java[tags=guarded-plugin]
 ----
 <1> Inject the `BuildFeatures` service.
-<2> Check whether Isolated Projects is active; the `active` status is always defined.
+<2> Check whether Isolated Projects is active; it's safe to call `get()` on `active`, because it's always defined.
 <3> Skip the incompatible logic when Isolated Projects is active.
 
 [[sec:guard_third_party_plugin]]
@@ -918,13 +918,6 @@ Apply the plugin from a convention plugin rather than from a `plugins {}` block,
 include::{snippetsPath}/isolatedProjects/guardingBuildLogic/common/buildSrc/src/main/java/com/example/ApplierConventionPlugin.java[tags=applier-plugin]
 ----
 <1> Apply the incompatible plugin only when Isolated Projects is not active.
-
-Apply the convention plugin in the projects that need it:
-
-====
-include::sample[dir="snippets/isolatedProjects/guardingBuildLogic/kotlin",files="build.gradle.kts[tags=apply]"]
-include::sample[dir="snippets/isolatedProjects/guardingBuildLogic/groovy",files="build.gradle[tags=apply]"]
-====
 
 [NOTE]
 ====
