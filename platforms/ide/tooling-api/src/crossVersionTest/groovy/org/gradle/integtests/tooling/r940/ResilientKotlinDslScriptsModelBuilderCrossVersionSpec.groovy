@@ -274,7 +274,7 @@ class ResilientKotlinDslScriptsModelBuilderCrossVersionSpec extends KotlinDslPlu
         "with isolated projects"   | IP_FLAGS
     }
 
-    def "compilation failure in included build project script body: root build and included build model is returned from #fromVersion #mode"() {
+    def "compilation failure in included build project script body: root build and included build model is returned with the expected failures from #fromVersion #mode"() {
         given:
         skipIfIpNotSupported(extraGradleProperties)
         skipUnlessExpectationsApply(fromVersion, untilVersion)
@@ -318,7 +318,7 @@ class ResilientKotlinDslScriptsModelBuilderCrossVersionSpec extends KotlinDslPlu
         "9.7"       | null         | [Pair.of(".", GENERAL_CONFIGURATION_FAILURE), Pair.of("included", BUILD_SCRIPT_COMPILE_ERROR)] | "with isolated projects" | IP_FLAGS
     }
 
-    def "compilation failure in included build project plugins block: root build and included build model is returned from #fromVersion #mode"() {
+    def "compilation failure in included build project plugins block: root build and included build model is returned with the expected failures from #fromVersion #mode"() {
         given:
         skipIfIpNotSupported(extraGradleProperties)
         skipUnlessExpectationsApply(fromVersion, untilVersion)
@@ -356,7 +356,7 @@ class ResilientKotlinDslScriptsModelBuilderCrossVersionSpec extends KotlinDslPlu
         "9.7"       | null         | [Pair.of(".", GENERAL_CONFIGURATION_FAILURE), Pair.of("included", BUILD_SCRIPT_COMPILE_ERROR)] | "with isolated projects" | IP_FLAGS
     }
 
-    def "#description failure in main build subproject: resilient model is equal to non-resilient model except accessors with #queryStrategy from #fromVersion #mode"() {
+    def "#description failure in main build subproject: resilient model is equal to non-resilient model except accessors and the expected failures are reported with #queryStrategy from #fromVersion #mode"() {
         given:
         skipIfIpNotSupported(extraGradleProperties)
         skipUnlessExpectationsApply(fromVersion, untilVersion)
@@ -433,7 +433,7 @@ class ResilientKotlinDslScriptsModelBuilderCrossVersionSpec extends KotlinDslPlu
         "9.7"       | null         | "script compilation fails" | "broken !!!"                                 | "broken !!!"     | [Pair.of(".", GENERAL_CONFIGURATION_FAILURE)]                         | INCLUDED_BUILDS_FIRST | "with isolated projects" | IP_FLAGS
     }
 
-    def "runtime failure in project convention plugin: resilient model is equal to non-resilient model except accessors and build-logic jar #queryStrategy from #fromVersion #mode"() {
+    def "runtime failure in project convention plugin: resilient model is equal to non-resilient model except accessors and build-logic jar and the expected failures are reported #queryStrategy from #fromVersion #mode"() {
         given:
         skipIfIpNotSupported(extraGradleProperties)
         skipUnlessExpectationsApply(fromVersion, untilVersion)
@@ -531,7 +531,7 @@ class ResilientKotlinDslScriptsModelBuilderCrossVersionSpec extends KotlinDslPlu
         "9.7"       | null         | [Pair.of(".", GENERAL_CONFIGURATION_FAILURE)]                         | INCLUDED_BUILDS_FIRST | "with isolated projects" | IP_FLAGS
     }
 
-    def "compilation failure in project convention plugin: resilient model is equal to non-resilient model except accessors and build-logic jar #queryStrategy from #fromVersion #mode"() {
+    def "compilation failure in project convention plugin: resilient model is equal to non-resilient model except accessors and build-logic jar and the expected failures are reported #queryStrategy from #fromVersion #mode"() {
         given:
         skipIfIpNotSupported(extraGradleProperties)
         skipUnlessExpectationsApply(fromVersion, untilVersion)
@@ -810,7 +810,7 @@ class ResilientKotlinDslScriptsModelBuilderCrossVersionSpec extends KotlinDslPlu
         "with isolated projects"   | IP_FLAGS
     }
 
-    def "return partial model when compilation failure in buildSrc (#brokenFile) from #fromVersion #mode"() {
+    def "return partial model with the expected failures when compilation failure in buildSrc (#brokenFile) from #fromVersion #mode"() {
         given:
         skipIfIpNotSupported(extraGradleProperties)
         skipUnlessExpectationsApply(fromVersion, untilVersion)
