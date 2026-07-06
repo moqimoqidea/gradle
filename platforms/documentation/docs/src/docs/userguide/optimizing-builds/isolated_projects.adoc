@@ -881,8 +881,9 @@ gradle.lifecycle.beforeProject {
 [[sec:guarding_build_logic]]
 ==== Guard incompatible build logic as a last resort
 
-During adoption, some build logic may not yet be compatible with Isolated Projects and cannot be fixed immediately — for example, a plugin that is still being migrated, or a third-party plugin that is not essential to every workflow.
-As a last resort, such logic can be _guarded_ so that it only runs when Isolated Projects is not active.
+During adoption, some build logic may not yet be compatible with Isolated Projects and cannot be fixed immediately.
+For example, a plugin that is still being migrated, or a third-party plugin that is not essential to every workflow.
+As a last resort, you can _guard_ such logic so that it only runs when Isolated Projects is *not* active.
 
 [WARNING]
 ====
@@ -910,14 +911,14 @@ include::{snippetsPath}/isolatedProjects/guardingBuildLogic/common/buildSrc/src/
 [[sec:guard_third_party_plugin]]
 ===== Guard the application of an incompatible third-party plugin
 
-If a third-party plugin is utterly incompatible with Isolated Projects and is not needed in every workflow, you can guard its _application_ in the same way.
-Apply the plugin from a convention plugin rather than from a `plugins {}` block, so that the decision to apply it can be made conditionally:
+If a third-party plugin is incompatible with Isolated Projects and is not needed in every workflow, you can guard its _application_ in the same way.
+Apply the plugin from a convention plugin rather than from a `plugins {}` block, so that you can apply it conditionally:
 
 [source,java]
 ----
 include::{snippetsPath}/isolatedProjects/guardingBuildLogic/common/buildSrc/src/main/java/com/example/ApplierConventionPlugin.java[tags=applier-plugin]
 ----
-<1> Apply the incompatible plugin only when Isolated Projects is not active.
+<1> If Isolated Projects is active, skip applying the incompatible plugin.
 
 [NOTE]
 ====
@@ -933,7 +934,7 @@ A conditional baked into a published plugin changes behavior for every consuming
 This multiplies the complexity and divergent-behavior concerns above across the whole ecosystem.
 
 As a plugin author, strongly prefer making the plugin compatible with Isolated Projects over guarding.
-If you must guard, make the guarded behavior observable — for example, by logging a warning as shown above — and document it clearly, so that consumers are not surprised by build logic that silently changes when Isolated Projects is enabled.
+If you must guard, make the guarded behavior observable (for example, by logging a warning as shown above) and document it clearly, so that consumers are not surprised by build logic that silently changes when Isolated Projects is enabled.
 
 [[sec:vs_other_features]]
 == Isolated Projects and other Gradle features

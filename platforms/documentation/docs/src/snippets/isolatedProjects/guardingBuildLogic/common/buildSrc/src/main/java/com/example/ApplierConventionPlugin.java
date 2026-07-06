@@ -14,13 +14,13 @@ public abstract class ApplierConventionPlugin implements Plugin<Project> {
 
     @Override
     public void apply(Project project) {
-        if (getBuildFeatures().getIsolatedProjects().getActive().get()) {
+        if (getBuildFeatures().getIsolatedProjects().getActive().get()) { // <1>
             project.getLogger().warn(
                 "Not applying com.example.incompatible on " + project.getPath()
                     + " because it is incompatible with Isolated Projects");
             return;
         }
-        project.getPluginManager().apply("com.example.incompatible"); // <1>
+        project.getPluginManager().apply("com.example.incompatible");
     }
 }
 // end::applier-plugin[]
