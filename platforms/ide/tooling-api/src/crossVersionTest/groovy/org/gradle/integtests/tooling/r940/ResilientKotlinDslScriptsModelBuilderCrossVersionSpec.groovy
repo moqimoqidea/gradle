@@ -33,7 +33,6 @@ import org.gradle.util.internal.ToBeImplemented
 import org.junit.Assume
 
 import java.util.function.Function
-import java.util.regex.Pattern
 import java.util.stream.Collectors
 
 import static KotlinModelAction.QueryStrategy
@@ -49,9 +48,9 @@ class ResilientKotlinDslScriptsModelBuilderCrossVersionSpec extends KotlinDslPlu
         "-Dorg.gradle.unsafe.isolated-projects=true",
     ]
 
-    private static final String BUILD_SCRIPT_COMPILE_ERROR = ".*Build file.*build\\.gradle\\.kts.*Script compilation error.*"
-    private static final String SETTINGS_SCRIPT_COMPILE_ERROR = ".*Settings file.*settings\\.gradle\\.kts.*Script compilation error.*"
-    private static final String GENERAL_CONFIGURATION_FAILURE = ".*The build could not be configured; see the reported build failures for the underlying problems\\..*"
+    private static final List<String> BUILD_SCRIPT_COMPILE_ERROR = ["Build file", "build.gradle.kts", "Script compilation error"]
+    private static final List<String> SETTINGS_SCRIPT_COMPILE_ERROR = ["Settings file", "settings.gradle.kts", "Script compilation error"]
+    private static final List<String> GENERAL_CONFIGURATION_FAILURE = ["The build could not be configured; see the reported build failures for the underlying problems."]
 
     TestFile initScriptFile
     KotlinModelCollector modelCollector
@@ -236,7 +235,7 @@ class ResilientKotlinDslScriptsModelBuilderCrossVersionSpec extends KotlinDslPlu
         def model = modelCollector.model
         assertHasScriptModelForFiles(model, "settings.gradle.kts", "build.gradle.kts")
         assertHasErrorsInScriptModels(model,
-            Pair.of(".", ".*Build file.*build\\.gradle\\.kts.*Script compilation error.*"))
+            Pair.of(".", BUILD_SCRIPT_COMPILE_ERROR))
         assertHasJarsInScriptModelClasspath(model, "build.gradle.kts", "gradle-kotlin-dsl-plugins")
 
         where:
@@ -266,7 +265,7 @@ class ResilientKotlinDslScriptsModelBuilderCrossVersionSpec extends KotlinDslPlu
         def model = modelCollector.model
         assertHasScriptModelForFiles(model, "settings.gradle.kts", "build.gradle.kts")
         assertHasErrorsInScriptModels(model,
-            Pair.of(".", ".*Build file.*build\\.gradle\\.kts.*Script compilation error.*"))
+            Pair.of(".", BUILD_SCRIPT_COMPILE_ERROR))
         assertHasAnyJarInScriptModelClasspath(model, "build.gradle.kts", expectedPublicApiJarPrefixes())
 
         where:
@@ -314,6 +313,7 @@ class ResilientKotlinDslScriptsModelBuilderCrossVersionSpec extends KotlinDslPlu
         where:
         fromVersion | untilVersion | expectedFailures                                                                               | mode                     | extraGradleProperties
         "9.4"       | "9.7"        | [Pair.of(".", BUILD_SCRIPT_COMPILE_ERROR), Pair.of("included", BUILD_SCRIPT_COMPILE_ERROR)]    | ""                       | NO_EXTRA_PROPERTIES
+        // From 9.7 each build reports only its own configuration failure, so builds that did not fail themselves report the general failure
         "9.7"       | null         | [Pair.of(".", GENERAL_CONFIGURATION_FAILURE), Pair.of("included", BUILD_SCRIPT_COMPILE_ERROR)] | ""                       | NO_EXTRA_PROPERTIES
         "9.7"       | null         | [Pair.of(".", GENERAL_CONFIGURATION_FAILURE), Pair.of("included", BUILD_SCRIPT_COMPILE_ERROR)] | "with isolated projects" | IP_FLAGS
     }
@@ -351,6 +351,7 @@ class ResilientKotlinDslScriptsModelBuilderCrossVersionSpec extends KotlinDslPlu
         where:
         fromVersion | untilVersion | expectedFailures                                                                               | mode                     | extraGradleProperties
         "9.4"       | "9.7"        | [Pair.of(".", BUILD_SCRIPT_COMPILE_ERROR), Pair.of("included", BUILD_SCRIPT_COMPILE_ERROR)]    | ""                       | NO_EXTRA_PROPERTIES
+        // From 9.7 each build reports only its own configuration failure, so builds that did not fail themselves report the general failure
         "9.7"       | null         | [Pair.of(".", GENERAL_CONFIGURATION_FAILURE), Pair.of("included", BUILD_SCRIPT_COMPILE_ERROR)] | ""                       | NO_EXTRA_PROPERTIES
         "9.7"       | null         | [Pair.of(".", GENERAL_CONFIGURATION_FAILURE), Pair.of("included", BUILD_SCRIPT_COMPILE_ERROR)] | "with isolated projects" | IP_FLAGS
     }
@@ -417,10 +418,11 @@ class ResilientKotlinDslScriptsModelBuilderCrossVersionSpec extends KotlinDslPlu
 
         where:
         fromVersion | untilVersion | description                | breakage                                     | expectedFailure  | expectedFailures                                                      | queryStrategy         | mode                     | extraGradleProperties
-        "9.4"       | "9.7"        | "scripts evaluation fails" | "throw RuntimeException(\"Failing script\")" | "Failing script" | [Pair.of(".", ".*c.build\\.gradle\\.kts' line: 5.*Failing script.*")] | ROOT_PROJECT_FIRST    | ""                       | NO_EXTRA_PROPERTIES
-        "9.4"       | "9.7"        | "scripts evaluation fails" | "throw RuntimeException(\"Failing script\")" | "Failing script" | [Pair.of(".", ".*c.build\\.gradle\\.kts' line: 5.*Failing script.*")] | INCLUDED_BUILDS_FIRST | ""                       | NO_EXTRA_PROPERTIES
-        "9.4"       | "9.7"        | "script compilation fails" | "broken !!!"                                 | "broken !!!"     | [Pair.of(".", ".*c.build\\.gradle\\.kts' line: 5.*broken !!!.*")]     | ROOT_PROJECT_FIRST    | ""                       | NO_EXTRA_PROPERTIES
-        "9.4"       | "9.7"        | "script compilation fails" | "broken !!!"                                 | "broken !!!"     | [Pair.of(".", ".*c.build\\.gradle\\.kts' line: 5.*broken !!!.*")]     | INCLUDED_BUILDS_FIRST | ""                       | NO_EXTRA_PROPERTIES
+        "9.4"       | "9.7"        | "scripts evaluation fails" | "throw RuntimeException(\"Failing script\")" | "Failing script" | [Pair.of(".", ["c${File.separatorChar}build.gradle.kts' line: 5", "Failing script"])] | ROOT_PROJECT_FIRST    | ""                       | NO_EXTRA_PROPERTIES
+        "9.4"       | "9.7"        | "scripts evaluation fails" | "throw RuntimeException(\"Failing script\")" | "Failing script" | [Pair.of(".", ["c${File.separatorChar}build.gradle.kts' line: 5", "Failing script"])] | INCLUDED_BUILDS_FIRST | ""                       | NO_EXTRA_PROPERTIES
+        "9.4"       | "9.7"        | "script compilation fails" | "broken !!!"                                 | "broken !!!"     | [Pair.of(".", ["c${File.separatorChar}build.gradle.kts' line: 5", "broken !!!"])]     | ROOT_PROJECT_FIRST    | ""                       | NO_EXTRA_PROPERTIES
+        "9.4"       | "9.7"        | "script compilation fails" | "broken !!!"                                 | "broken !!!"     | [Pair.of(".", ["c${File.separatorChar}build.gradle.kts' line: 5", "broken !!!"])]     | INCLUDED_BUILDS_FIRST | ""                       | NO_EXTRA_PROPERTIES
+        // From 9.7 each build reports only its own configuration failure, so builds that did not fail themselves report the general failure
         "9.7"       | null         | "scripts evaluation fails" | "throw RuntimeException(\"Failing script\")" | "Failing script" | [Pair.of(".", GENERAL_CONFIGURATION_FAILURE)]                         | ROOT_PROJECT_FIRST    | ""                       | NO_EXTRA_PROPERTIES
         "9.7"       | null         | "scripts evaluation fails" | "throw RuntimeException(\"Failing script\")" | "Failing script" | [Pair.of(".", GENERAL_CONFIGURATION_FAILURE)]                         | INCLUDED_BUILDS_FIRST | ""                       | NO_EXTRA_PROPERTIES
         "9.7"       | null         | "script compilation fails" | "broken !!!"                                 | "broken !!!"     | [Pair.of(".", GENERAL_CONFIGURATION_FAILURE)]                         | ROOT_PROJECT_FIRST    | ""                       | NO_EXTRA_PROPERTIES
@@ -520,8 +522,9 @@ class ResilientKotlinDslScriptsModelBuilderCrossVersionSpec extends KotlinDslPlu
 
         where:
         fromVersion | untilVersion | expectedFailures                                                      | queryStrategy         | mode                     | extraGradleProperties
-        "9.4"       | "9.7"        | [Pair.of(".", ".*b.build\\.gradle\\.kts' line: 2.*Failing script.*")] | ROOT_PROJECT_FIRST    | ""                       | NO_EXTRA_PROPERTIES
-        "9.4"       | "9.7"        | [Pair.of(".", ".*b.build\\.gradle\\.kts' line: 2.*Failing script.*")] | INCLUDED_BUILDS_FIRST | ""                       | NO_EXTRA_PROPERTIES
+        "9.4"       | "9.7"        | [Pair.of(".", ["b${File.separatorChar}build.gradle.kts' line: 2", "Failing script"])] | ROOT_PROJECT_FIRST    | ""                       | NO_EXTRA_PROPERTIES
+        "9.4"       | "9.7"        | [Pair.of(".", ["b${File.separatorChar}build.gradle.kts' line: 2", "Failing script"])] | INCLUDED_BUILDS_FIRST | ""                       | NO_EXTRA_PROPERTIES
+        // From 9.7 each build reports only its own configuration failure, so builds that did not fail themselves report the general failure
         "9.7"       | null         | [Pair.of(".", GENERAL_CONFIGURATION_FAILURE)]                         | ROOT_PROJECT_FIRST    | ""                       | NO_EXTRA_PROPERTIES
         "9.7"       | null         | [Pair.of(".", GENERAL_CONFIGURATION_FAILURE)]                         | INCLUDED_BUILDS_FIRST | ""                       | NO_EXTRA_PROPERTIES
         "9.7"       | null         | [Pair.of(".", GENERAL_CONFIGURATION_FAILURE)]                         | ROOT_PROJECT_FIRST    | "with isolated projects" | IP_FLAGS
@@ -615,8 +618,9 @@ class ResilientKotlinDslScriptsModelBuilderCrossVersionSpec extends KotlinDslPlu
 
         where:
         fromVersion | untilVersion | expectedFailures                                                     | queryStrategy         | mode                     | extraGradleProperties
-        "9.4"       | "9.7"        | [Pair.of(".", ".*A problem occurred configuring project ':b'\\..*")] | ROOT_PROJECT_FIRST    | ""                       | NO_EXTRA_PROPERTIES
-        "9.4"       | "9.7"        | [Pair.of(".", ".*A problem occurred configuring project ':b'\\..*")] | INCLUDED_BUILDS_FIRST | ""                       | NO_EXTRA_PROPERTIES
+        "9.4"       | "9.7"        | [Pair.of(".", ["A problem occurred configuring project ':b'."])] | ROOT_PROJECT_FIRST    | ""                       | NO_EXTRA_PROPERTIES
+        "9.4"       | "9.7"        | [Pair.of(".", ["A problem occurred configuring project ':b'."])] | INCLUDED_BUILDS_FIRST | ""                       | NO_EXTRA_PROPERTIES
+        // From 9.7 each build reports only its own configuration failure, so builds that did not fail themselves report the general failure
         "9.7"       | null         | [Pair.of(".", GENERAL_CONFIGURATION_FAILURE)]                        | ROOT_PROJECT_FIRST    | ""                       | NO_EXTRA_PROPERTIES
         "9.7"       | null         | [Pair.of(".", GENERAL_CONFIGURATION_FAILURE)]                        | INCLUDED_BUILDS_FIRST | ""                       | NO_EXTRA_PROPERTIES
         "9.7"       | null         | [Pair.of(".", GENERAL_CONFIGURATION_FAILURE)]                        | ROOT_PROJECT_FIRST    | "with isolated projects" | IP_FLAGS
@@ -642,7 +646,7 @@ class ResilientKotlinDslScriptsModelBuilderCrossVersionSpec extends KotlinDslPlu
         def model = modelCollector.model
         model.scriptModels.isEmpty()
         assertHasErrorsInScriptModels(model,
-            Pair.of(".", ".*Settings file.*settings\\.gradle\\.kts.*Script compilation error.*"))
+            Pair.of(".", SETTINGS_SCRIPT_COMPILE_ERROR))
 
         where:
         mode                       | extraGradleProperties
@@ -678,8 +682,8 @@ class ResilientKotlinDslScriptsModelBuilderCrossVersionSpec extends KotlinDslPlu
         def model = modelCollector.model
         model.scriptModels.isEmpty()
         assertHasErrorsInScriptModels(model,
-            Pair.of(".", ".*Settings file.*settings\\.gradle\\.kts.*Script compilation error.*"),
-            Pair.of("included", ".*Settings file.*settings\\.gradle\\.kts.*Script compilation error.*"))
+            Pair.of(".", SETTINGS_SCRIPT_COMPILE_ERROR),
+            Pair.of("included", SETTINGS_SCRIPT_COMPILE_ERROR))
 
         where:
         mode                       | extraGradleProperties
@@ -743,7 +747,7 @@ class ResilientKotlinDslScriptsModelBuilderCrossVersionSpec extends KotlinDslPlu
         def model = modelCollector.model
         assertHasScriptModelForFiles(model, "build-logic/settings.gradle.kts", "build-logic/build.gradle.kts", "build-logic/src/main/kotlin/build-logic.settings.gradle.kts")
         assertHasErrorsInScriptModels(model,
-            Pair.of(".", ".*Execution failed for task ':build-logic:compileKotlin.*"))
+            Pair.of(".", ["Execution failed for task ':build-logic:compileKotlin'"]))
 
         where:
         mode                       | extraGradleProperties
@@ -772,7 +776,7 @@ class ResilientKotlinDslScriptsModelBuilderCrossVersionSpec extends KotlinDslPlu
         then:
         assertHasScriptModelForFiles(model, "settings.gradle.kts", "build.gradle.kts")
         assertHasErrorsInScriptModels(model,
-            Pair.of(".", ".*Build file.*build\\.gradle\\.kts.*Script compilation error.*"))
+            Pair.of(".", BUILD_SCRIPT_COMPILE_ERROR))
 
         where:
         mode                       | extraGradleProperties
@@ -798,7 +802,7 @@ class ResilientKotlinDslScriptsModelBuilderCrossVersionSpec extends KotlinDslPlu
         then:
         model.scriptModels.isEmpty()
         assertHasErrorsInScriptModels(model,
-            Pair.of(".", ".*Settings file.*settings\\.gradle\\.kts.*Script compilation error.*"))
+            Pair.of(".", SETTINGS_SCRIPT_COMPILE_ERROR))
 
         where:
         mode                       | extraGradleProperties
@@ -843,6 +847,7 @@ class ResilientKotlinDslScriptsModelBuilderCrossVersionSpec extends KotlinDslPlu
         "9.4"       | "9.7"        | "buildSrc/build.gradle.kts"             | ["settings.gradle.kts", "buildSrc/settings.gradle.kts", "buildSrc/build.gradle.kts", "buildSrc-included/settings.gradle.kts"]          | [Pair.of(".", BUILD_SCRIPT_COMPILE_ERROR), Pair.of("buildSrc", BUILD_SCRIPT_COMPILE_ERROR)]                                                                    | ""                       | NO_EXTRA_PROPERTIES
         "9.4"       | "9.7"        | "buildSrc-included/settings.gradle.kts" | ["settings.gradle.kts"]                                                                                                                | [Pair.of(".", SETTINGS_SCRIPT_COMPILE_ERROR), Pair.of("buildSrc", SETTINGS_SCRIPT_COMPILE_ERROR), Pair.of("buildSrc-included", SETTINGS_SCRIPT_COMPILE_ERROR)] | ""                       | NO_EXTRA_PROPERTIES
         "9.4"       | "9.7"        | "buildSrc-included/build.gradle.kts"    | ["settings.gradle.kts", "buildSrc/settings.gradle.kts", "buildSrc-included/settings.gradle.kts", "buildSrc-included/build.gradle.kts"] | [Pair.of(".", BUILD_SCRIPT_COMPILE_ERROR), Pair.of("buildSrc-included", BUILD_SCRIPT_COMPILE_ERROR)]                                                           | ""                       | NO_EXTRA_PROPERTIES
+        // From 9.7 each build reports only its own configuration failure, so builds that did not fail themselves report the general failure
         "9.7"       | null         | "buildSrc/settings.gradle.kts"          | ["settings.gradle.kts"]                                                                                                                | [Pair.of(".", GENERAL_CONFIGURATION_FAILURE), Pair.of("buildSrc", SETTINGS_SCRIPT_COMPILE_ERROR)]                                                              | ""                       | NO_EXTRA_PROPERTIES
         "9.7"       | null         | "buildSrc/build.gradle.kts"             | ["settings.gradle.kts", "buildSrc/settings.gradle.kts", "buildSrc/build.gradle.kts", "buildSrc-included/settings.gradle.kts"]          | [Pair.of(".", GENERAL_CONFIGURATION_FAILURE), Pair.of("buildSrc", BUILD_SCRIPT_COMPILE_ERROR)]                                                                 | ""                       | NO_EXTRA_PROPERTIES
         "9.7"       | null         | "buildSrc-included/settings.gradle.kts" | ["settings.gradle.kts"]                                                                                                                | [Pair.of(".", GENERAL_CONFIGURATION_FAILURE), Pair.of("buildSrc", SETTINGS_SCRIPT_COMPILE_ERROR), Pair.of("buildSrc-included", GENERAL_CONFIGURATION_FAILURE)] | ""                       | NO_EXTRA_PROPERTIES
@@ -864,24 +869,25 @@ class ResilientKotlinDslScriptsModelBuilderCrossVersionSpec extends KotlinDslPlu
     }
 
     // The scripts model attaches failures per build root, not per project, so the queried build is the finest granularity these expectations can assert.
-    void assertHasErrorsInScriptModels(KotlinModel model, Pair<String, String>... expected) {
+    void assertHasErrorsInScriptModels(KotlinModel model, Pair<String, List<String>>... expected) {
         assert model.failures.size() == expected.size(): "Expected ${expected.size()} failures, but got ${model.failures.size()}"
         def failures = new HashMap<>(model.failures)
 
-        for (Pair<String, String> expectedElement : expected) {
+        for (Pair<String, List<String>> expectedElement : expected) {
             def buildRootDir = new File(new File(projectDir, expectedElement.left).canonicalPath)
             def failure = failures.remove(buildRootDir)
             assert failure: "Failures for build root ${expectedElement.left} not available"
-            matchProjectFailure(failure, expectedElement.right)
+            expectedElement.right.each { fragment ->
+                expectFailureToContain(failure, fragment)
+            }
         }
 
         assert failures.isEmpty(): "Unexpected failures for build roots: ${failures.keySet()}"
     }
 
-    private static void matchProjectFailure(String failureMessage, String expectedPattern) {
-        def pattern = Pattern.compile(expectedPattern, Pattern.DOTALL)
-        def matcher = pattern.matcher(failureMessage)
-        assert matcher.matches(): "Exception \"${failureMessage}\" doesn't match expected pattern \"${expectedPattern}\""
+    static void expectFailureToContain(String actualFailure, String expectedFragment) {
+        assert actualFailure.contains(expectedFragment):
+            "Failure expected to contain \"${expectedFragment}\", but was \"\n${actualFailure}\n\" instead!"
     }
 
     /**
