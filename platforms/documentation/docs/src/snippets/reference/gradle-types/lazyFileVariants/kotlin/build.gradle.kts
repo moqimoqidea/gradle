@@ -9,9 +9,22 @@ tasks.named<Javadoc>("javadoc") {
 }
 // end::lazy-javadoc-destination[]
 
-tasks.register("verifyJavadocDestination") {
-    val destination = tasks.named<Javadoc>("javadoc").flatMap { it.destinationDirectory }
-    doLast {
-        println("javadoc destination: ${destination.get().asFile.toRelativeString(projectDir)}")
+abstract class VerifyJavadocDestination : DefaultTask() {
+    @get:Internal
+    abstract val destination: DirectoryProperty
+
+    @get:Internal
+    abstract val projectDirectory: DirectoryProperty
+
+    @TaskAction
+    fun action() {
+        val dest = destination.get().asFile
+        val projDir = projectDirectory.get().asFile
+        println("javadoc destination: ${dest.toRelativeString(projDir)}")
     }
+}
+
+tasks.register<VerifyJavadocDestination>("verifyJavadocDestination") {
+    destination = tasks.named<Javadoc>("javadoc").flatMap { it.destinationDirectory }
+    projectDirectory = layout.projectDirectory
 }
