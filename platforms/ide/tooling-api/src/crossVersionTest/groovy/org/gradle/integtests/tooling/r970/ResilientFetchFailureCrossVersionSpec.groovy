@@ -32,6 +32,10 @@ class ResilientFetchFailureCrossVersionSpec extends KotlinDslPluginRelatedToolin
         "-Dorg.gradle.unsafe.isolated-projects=true"
     ]
 
+    private static final List<String> ISOLATED_PROJECTS_ON = [
+        "-Dorg.gradle.isolated-projects=true"
+    ]
+
     // The exact client-facing failure for a project with no failure of its own (clean or never-reached). Asserted in
     // full so this text is a guarantee: changing it must be a deliberate change that updates this test.
     private static final String GENERAL_CONFIGURATION_FAILURE = "The build could not be configured; see the reported build failures for the underlying problems."
@@ -190,6 +194,40 @@ class CustomPlugin implements Plugin<Project> {
         countCauseMessages(e, "boom during configuration of b") == 1
     }
 
+    def "each failing project reports only its own failure and clean projects report neither, while the build still fails"() {
+        given: "two independently failing projects next to a clean one, no other failure source"
+        settingsKotlinFile.text = """
+            rootProject.name = "root"
+            include("a", "b", "c")
+        """
+        file("a/build.gradle.kts").text = "// intentionally clean\n"
+        file("b/build.gradle.kts").text = 'throw RuntimeException("FAILURE(:b)")\n'
+        file("c/build.gradle.kts").text = 'throw RuntimeException("FAILURE(:c)")\n'
+
+        when:
+        fetchFailures(ISOLATED_PROJECTS_ON)
+
+        then: "behaviour is unchanged: the whole build fails to configure, so every project fails to be queried and the build fails"
+        thrown(BuildException)
+        def result = fetchResult
+        result.successfullyQueriedProjects == []
+        result.failedToQueryProjects.toSet() == ["root", "a", "b", "c"] as Set
+
+        and: "each failing project's client failure carries only its own marker, not the sibling's whole-build aggregate"
+        treeContains(result, "b", "FAILURE(:b)")
+        !treeContains(result, "b", "FAILURE(:c)")
+        treeContains(result, "c", "FAILURE(:c)")
+        !treeContains(result, "c", "FAILURE(:b)")
+
+        and: "clean projects carry the general message, not either sibling's failure or the whole-build aggregate"
+        treeContains(result, "root", GENERAL_CONFIGURATION_FAILURE)
+        treeContains(result, "a", GENERAL_CONFIGURATION_FAILURE)
+        !treeContains(result, "root", "FAILURE(:b)")
+        !treeContains(result, "root", "FAILURE(:c)")
+        !treeContains(result, "a", "FAILURE(:b)")
+        !treeContains(result, "a", "FAILURE(:c)")
+    }
+
     private void fetchFailures(List<String> extraGradleProperties = []) {
         fails {
             action()
@@ -214,5 +252,19 @@ class CustomPlugin implements Plugin<Project> {
             : (throwable.cause != null ? [throwable.cause] : [])
         causes.each { count += countCauseMessages(it as Throwable, text, depth + 1) }
         return count
+    }
+
+    private static boolean treeContains(FetchFailureTreeAction.Result result, String project, String marker) {
+        return nodeContains(result.failureTreeByProject[project], marker)
+    }
+
+    private static boolean nodeContains(FetchFailureTreeAction.FailureNode node, String marker) {
+        if (node == null) {
+            return false
+        }
+        if ((node.message ?: "").contains(marker)) {
+            return true
+        }
+        return node.causes.any { nodeContains(it, marker) }
     }
 }
