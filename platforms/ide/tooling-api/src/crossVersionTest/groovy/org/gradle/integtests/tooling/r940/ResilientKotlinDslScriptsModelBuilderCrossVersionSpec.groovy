@@ -49,6 +49,10 @@ class ResilientKotlinDslScriptsModelBuilderCrossVersionSpec extends KotlinDslPlu
         "-Dorg.gradle.unsafe.isolated-projects=true",
     ]
 
+    private static final String BUILD_SCRIPT_COMPILE_ERROR = ".*Build file.*build\\.gradle\\.kts.*Script compilation error.*"
+    private static final String SETTINGS_SCRIPT_COMPILE_ERROR = ".*Settings file.*settings\\.gradle\\.kts.*Script compilation error.*"
+    private static final String GENERAL_CONFIGURATION_FAILURE = ".*The build could not be configured; see the reported build failures for the underlying problems\\..*"
+
     TestFile initScriptFile
     KotlinModelCollector modelCollector
 
@@ -304,8 +308,8 @@ class ResilientKotlinDslScriptsModelBuilderCrossVersionSpec extends KotlinDslPlu
         def model = modelCollector.model
         assertHasScriptModelForFiles(model, "settings.gradle.kts", "included/settings.gradle.kts", "included/build.gradle.kts")
         assertHasErrorsInScriptModels(model,
-            Pair.of(".", ".*Build file.*build\\.gradle\\.kts.*Script compilation error.*"),
-            Pair.of("included", ".*Build file.*build\\.gradle\\.kts.*Script compilation error.*"))
+            Pair.of(".", otherBuildFailure(BUILD_SCRIPT_COMPILE_ERROR)),
+            Pair.of("included", BUILD_SCRIPT_COMPILE_ERROR))
         assertHasJarsInScriptModelClasspath(model, "included/build.gradle.kts", "gradle-kotlin-dsl-plugins")
 
         where:
@@ -341,8 +345,8 @@ class ResilientKotlinDslScriptsModelBuilderCrossVersionSpec extends KotlinDslPlu
         def model = modelCollector.model
         assertHasScriptModelForFiles(model, "settings.gradle.kts", "included/settings.gradle.kts", "included/build.gradle.kts")
         assertHasErrorsInScriptModels(model,
-            Pair.of(".", ".*Build file.*build\\.gradle\\.kts.*Script compilation error.*"),
-            Pair.of("included", ".*Build file.*build\\.gradle\\.kts.*Script compilation error.*"))
+            Pair.of(".", otherBuildFailure(BUILD_SCRIPT_COMPILE_ERROR)),
+            Pair.of("included", BUILD_SCRIPT_COMPILE_ERROR))
         assertHasAnyJarInScriptModelClasspath(model, "included/build.gradle.kts", expectedPublicApiJarPrefixes())
 
         where:
@@ -408,9 +412,14 @@ class ResilientKotlinDslScriptsModelBuilderCrossVersionSpec extends KotlinDslPlu
             modelAssert.assertClassPathsAreEqualIfIgnoringSomeEntries { !it.contains("/accessors/") }
             modelAssert.assertImplicitImportsAreEqualIgnoringAccessors()
         }
-        resilientModels.failures.size() == 1
-        expectFailureToContain(resilientModels.failures[settingsKotlinFile.parentFile], "c" + File.separatorChar + "build.gradle.kts' line: 5")
-        expectFailureToContain(resilientModels.failures[settingsKotlinFile.parentFile], expectedFailure)
+        if (perProjectFailureReporting) {
+            // The failing project is ':c', not the queried root project, so the root build reports a general failure
+            assertHasErrorsInScriptModels(resilientModels, Pair.of(".", GENERAL_CONFIGURATION_FAILURE))
+        } else {
+            assert resilientModels.failures.size() == 1
+            expectFailureToContain(resilientModels.failures[settingsKotlinFile.parentFile], "c" + File.separatorChar + "build.gradle.kts' line: 5")
+            expectFailureToContain(resilientModels.failures[settingsKotlinFile.parentFile], expectedFailure)
+        }
 
         where:
         description                | breakage                                     | expectedFailure  | queryStrategy          | mode                     | extraGradleProperties
@@ -508,9 +517,14 @@ class ResilientKotlinDslScriptsModelBuilderCrossVersionSpec extends KotlinDslPlu
                 modelAssert.assertImplicitImportsAreEqualIgnoringAccessors()
             }
         }
-        resilientModels.failures.size() == 1
-        expectFailureToContain(resilientModels.failures[settingsKotlinFile.parentFile], "b" + File.separatorChar + "build.gradle.kts' line: 2")
-        expectFailureToContain(resilientModels.failures[settingsKotlinFile.parentFile], "Failing script")
+        if (perProjectFailureReporting) {
+            // The failing project is ':b', not the queried root project, so the root build reports a general failure
+            assertHasErrorsInScriptModels(resilientModels, Pair.of(".", GENERAL_CONFIGURATION_FAILURE))
+        } else {
+            assert resilientModels.failures.size() == 1
+            expectFailureToContain(resilientModels.failures[settingsKotlinFile.parentFile], "b" + File.separatorChar + "build.gradle.kts' line: 2")
+            expectFailureToContain(resilientModels.failures[settingsKotlinFile.parentFile], "Failing script")
+        }
 
         where:
         queryStrategy          | mode                     | extraGradleProperties
@@ -602,9 +616,14 @@ class ResilientKotlinDslScriptsModelBuilderCrossVersionSpec extends KotlinDslPlu
                 modelAssert.assertImplicitImportsAreEqualIgnoringAccessors()
             }
         }
-        def actualNoOfFailures = resilientModels.failures.size()
-        assert actualNoOfFailures == 1: "Expected 1 failures, but had ${actualNoOfFailures}"
-        expectFailureToContain(resilientModels.failures[settingsKotlinFile.parentFile], "A problem occurred configuring project ':b'.")
+        if (perProjectFailureReporting) {
+            // The failing project is ':b', not the queried root project, so the root build reports a general failure
+            assertHasErrorsInScriptModels(resilientModels, Pair.of(".", GENERAL_CONFIGURATION_FAILURE))
+        } else {
+            def actualNoOfFailures = resilientModels.failures.size()
+            assert actualNoOfFailures == 1: "Expected 1 failures, but had ${actualNoOfFailures}"
+            expectFailureToContain(resilientModels.failures[settingsKotlinFile.parentFile], "A problem occurred configuring project ':b'.")
+        }
 
         where:
         queryStrategy          | mode                     | extraGradleProperties
@@ -825,18 +844,18 @@ class ResilientKotlinDslScriptsModelBuilderCrossVersionSpec extends KotlinDslPlu
         e.cause.message.contains("Script compilation error")
         def model = modelCollector.model
         assertHasScriptModelForFiles(model, *scriptModels)
-        assertHasErrorsInScriptModels(model, *failures)
+        assertHasErrorsInScriptModels(model, *failures.call(perProjectFailureReporting))
 
         where:
-        brokenFile                              | scriptModels                                                                                                                           | failures                                                                                                                                                                                                                                                              | mode                       | extraGradleProperties
-        "buildSrc/settings.gradle.kts"          | ["settings.gradle.kts"]                                                                                                                | [Pair.of(".", ".*Settings file.*settings\\.gradle\\.kts.*Script compilation error.*"), Pair.of("buildSrc", ".*Settings file.*settings\\.gradle\\.kts.*Script compilation error.*")]                                                                                   | ""                         | NO_EXTRA_PROPERTIES
-        "buildSrc/build.gradle.kts"             | ["settings.gradle.kts", "buildSrc/settings.gradle.kts", "buildSrc/build.gradle.kts", "buildSrc-included/settings.gradle.kts"]          | [Pair.of(".", ".*Build file.*build\\.gradle\\.kts.*Script compilation error.*"), Pair.of("buildSrc", ".*Build file.*build\\.gradle\\.kts.*Script compilation error.*")]                                                                                               | ""                         | NO_EXTRA_PROPERTIES
-        "buildSrc-included/settings.gradle.kts" | ["settings.gradle.kts"]                                                                                                                | [Pair.of(".", ".*Settings file.*settings\\.gradle\\.kts.*Script compilation error.*"), Pair.of("buildSrc", ".*Settings file.*settings\\.gradle\\.kts.*Script compilation error.*"), Pair.of("buildSrc-included", ".*Settings file.*settings\\.gradle\\.kts.*Script compilation error.*")] | ""                         | NO_EXTRA_PROPERTIES
-        "buildSrc-included/build.gradle.kts"    | ["settings.gradle.kts", "buildSrc/settings.gradle.kts", "buildSrc-included/settings.gradle.kts", "buildSrc-included/build.gradle.kts"] | [Pair.of(".", ".*Build file.*build\\.gradle\\.kts.*Script compilation error.*"), Pair.of("buildSrc-included", ".*Build file.*build\\.gradle\\.kts.*Script compilation error.*")]                                                                                      | ""                         | NO_EXTRA_PROPERTIES
-        "buildSrc/settings.gradle.kts"          | ["settings.gradle.kts"]                                                                                                                | [Pair.of(".", ".*Settings file.*settings\\.gradle\\.kts.*Script compilation error.*"), Pair.of("buildSrc", ".*Settings file.*settings\\.gradle\\.kts.*Script compilation error.*")]                                                                                   | "with isolated projects"   | IP_FLAGS
-        "buildSrc/build.gradle.kts"             | ["settings.gradle.kts", "buildSrc/settings.gradle.kts", "buildSrc/build.gradle.kts", "buildSrc-included/settings.gradle.kts"]          | [Pair.of(".", ".*Build file.*build\\.gradle\\.kts.*Script compilation error.*"), Pair.of("buildSrc", ".*Build file.*build\\.gradle\\.kts.*Script compilation error.*")]                                                                                               | "with isolated projects"   | IP_FLAGS
-        "buildSrc-included/settings.gradle.kts" | ["settings.gradle.kts"]                                                                                                                | [Pair.of(".", ".*Settings file.*settings\\.gradle\\.kts.*Script compilation error.*"), Pair.of("buildSrc", ".*Settings file.*settings\\.gradle\\.kts.*Script compilation error.*"), Pair.of("buildSrc-included", ".*Settings file.*settings\\.gradle\\.kts.*Script compilation error.*")] | "with isolated projects"   | IP_FLAGS
-        "buildSrc-included/build.gradle.kts"    | ["settings.gradle.kts", "buildSrc/settings.gradle.kts", "buildSrc-included/settings.gradle.kts", "buildSrc-included/build.gradle.kts"] | [Pair.of(".", ".*Build file.*build\\.gradle\\.kts.*Script compilation error.*"), Pair.of("buildSrc-included", ".*Build file.*build\\.gradle\\.kts.*Script compilation error.*")]                                                                                      | "with isolated projects"   | IP_FLAGS
+        brokenFile                              | scriptModels                                                                                                                           | failures                                                                                                                                                                                                                                            | mode                       | extraGradleProperties
+        "buildSrc/settings.gradle.kts"          | ["settings.gradle.kts"]                                                                                                                | { pp -> [Pair.of(".", pp ? GENERAL_CONFIGURATION_FAILURE : SETTINGS_SCRIPT_COMPILE_ERROR), Pair.of("buildSrc", SETTINGS_SCRIPT_COMPILE_ERROR)] }                                                                                                    | ""                         | NO_EXTRA_PROPERTIES
+        "buildSrc/build.gradle.kts"             | ["settings.gradle.kts", "buildSrc/settings.gradle.kts", "buildSrc/build.gradle.kts", "buildSrc-included/settings.gradle.kts"]          | { pp -> [Pair.of(".", pp ? GENERAL_CONFIGURATION_FAILURE : BUILD_SCRIPT_COMPILE_ERROR), Pair.of("buildSrc", BUILD_SCRIPT_COMPILE_ERROR)] }                                                                                                          | ""                         | NO_EXTRA_PROPERTIES
+        "buildSrc-included/settings.gradle.kts" | ["settings.gradle.kts"]                                                                                                                | { pp -> [Pair.of(".", pp ? GENERAL_CONFIGURATION_FAILURE : SETTINGS_SCRIPT_COMPILE_ERROR), Pair.of("buildSrc", SETTINGS_SCRIPT_COMPILE_ERROR), Pair.of("buildSrc-included", pp ? GENERAL_CONFIGURATION_FAILURE : SETTINGS_SCRIPT_COMPILE_ERROR)] }  | ""                         | NO_EXTRA_PROPERTIES
+        "buildSrc-included/build.gradle.kts"    | ["settings.gradle.kts", "buildSrc/settings.gradle.kts", "buildSrc-included/settings.gradle.kts", "buildSrc-included/build.gradle.kts"] | { pp -> [Pair.of(".", pp ? GENERAL_CONFIGURATION_FAILURE : BUILD_SCRIPT_COMPILE_ERROR), Pair.of("buildSrc-included", BUILD_SCRIPT_COMPILE_ERROR)] }                                                                                                 | ""                         | NO_EXTRA_PROPERTIES
+        "buildSrc/settings.gradle.kts"          | ["settings.gradle.kts"]                                                                                                                | { pp -> [Pair.of(".", pp ? GENERAL_CONFIGURATION_FAILURE : SETTINGS_SCRIPT_COMPILE_ERROR), Pair.of("buildSrc", SETTINGS_SCRIPT_COMPILE_ERROR)] }                                                                                                    | "with isolated projects"   | IP_FLAGS
+        "buildSrc/build.gradle.kts"             | ["settings.gradle.kts", "buildSrc/settings.gradle.kts", "buildSrc/build.gradle.kts", "buildSrc-included/settings.gradle.kts"]          | { pp -> [Pair.of(".", pp ? GENERAL_CONFIGURATION_FAILURE : BUILD_SCRIPT_COMPILE_ERROR), Pair.of("buildSrc", BUILD_SCRIPT_COMPILE_ERROR)] }                                                                                                          | "with isolated projects"   | IP_FLAGS
+        "buildSrc-included/settings.gradle.kts" | ["settings.gradle.kts"]                                                                                                                | { pp -> [Pair.of(".", pp ? GENERAL_CONFIGURATION_FAILURE : SETTINGS_SCRIPT_COMPILE_ERROR), Pair.of("buildSrc", SETTINGS_SCRIPT_COMPILE_ERROR), Pair.of("buildSrc-included", pp ? GENERAL_CONFIGURATION_FAILURE : SETTINGS_SCRIPT_COMPILE_ERROR)] }  | "with isolated projects"   | IP_FLAGS
+        "buildSrc-included/build.gradle.kts"    | ["settings.gradle.kts", "buildSrc/settings.gradle.kts", "buildSrc-included/settings.gradle.kts", "buildSrc-included/build.gradle.kts"] | { pp -> [Pair.of(".", pp ? GENERAL_CONFIGURATION_FAILURE : BUILD_SCRIPT_COMPILE_ERROR), Pair.of("buildSrc-included", BUILD_SCRIPT_COMPILE_ERROR)] }                                                                                                 | "with isolated projects"   | IP_FLAGS
     }
 
     void assertHasScriptModelForFiles(KotlinModel model, String... expectedFiles) {
@@ -927,6 +946,16 @@ class ResilientKotlinDslScriptsModelBuilderCrossVersionSpec extends KotlinDslPlu
 
     KotlinModel originalModel(ProjectConnection conn, QueryStrategy queryStrategy, List<String> extraGradleProperties = NO_EXTRA_PROPERTIES) {
         return model(conn, false, queryStrategy, initScriptFile, modelCollector, extraGradleProperties)
+    }
+
+    // From Gradle 9.7 a build reports only its own configuration failure on the scripts model. Entries that
+    // used to carry another build's failure report a general failure instead.
+    private boolean isPerProjectFailureReporting() {
+        targetVersion.baseVersion >= GradleVersion.version("9.7")
+    }
+
+    private String otherBuildFailure(String preNinePointSevenPattern) {
+        perProjectFailureReporting ? GENERAL_CONFIGURATION_FAILURE : preNinePointSevenPattern
     }
 
     // Call from the top of each test's given: block. Isolated Projects model fetching with
