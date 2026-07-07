@@ -878,6 +878,64 @@ gradle.lifecycle.beforeProject {
 ----
 =====
 
+[[sec:guarding_build_logic]]
+==== Guard incompatible build logic as a last resort
+
+During adoption, some build logic may not yet be compatible with Isolated Projects and cannot be fixed immediately.
+For example, a plugin that is still being migrated, or a third-party plugin that is not essential to every workflow.
+As a last resort, you can _guard_ such logic so that it only runs when Isolated Projects is *not* active.
+
+[WARNING]
+====
+Guarding with a conditional is not advised if it is possible to fix the incompatibility instead.
+Prefer the refactoring strategies above.
+A conditional makes the build behave differently depending on whether Isolated Projects is active, which raises complexity, can hide problems, and can lead to different build results between the two modes.
+====
+
+To detect whether Isolated Projects is active, inject the link:{javadocPath}/org/gradle/api/configuration/BuildFeatures.html[`BuildFeatures`] service and read `isolatedProjects.active`.
+See <<implementing_gradle_plugins_binary.adoc#reacting_to_build_features,Reacting to build features>> for details on this API.
+
+[[sec:guard_own_plugin]]
+===== Guard logic inside your own plugin
+
+Guard the incompatible part of a plugin with an early return, so the rest of the build is unaffected:
+
+[source,java]
+----
+include::{snippetsPath}/isolatedProjects/guardingBuildLogic/common/buildSrc/src/main/java/com/example/GuardedConventionPlugin.java[tags=guarded-plugin]
+----
+<1> Inject the `BuildFeatures` service.
+<2> Check whether Isolated Projects is active; it's safe to call `get()` on `active`, because it's always defined.
+<3> Skip the incompatible logic when Isolated Projects is active.
+
+[[sec:guard_third_party_plugin]]
+===== Guard the application of an incompatible third-party plugin
+
+If a third-party plugin is incompatible with Isolated Projects and is not needed in every workflow, you can guard its _application_ in the same way.
+Apply the plugin from a convention plugin rather than from a `plugins {}` block, so that you can apply it conditionally:
+
+[source,java]
+----
+include::{snippetsPath}/isolatedProjects/guardingBuildLogic/common/buildSrc/src/main/java/com/example/ApplierConventionPlugin.java[tags=applier-plugin]
+----
+<1> If Isolated Projects is active, skip applying the incompatible plugin.
+
+[NOTE]
+====
+Guarding the _application_ of a plugin means the tasks and configuration it contributes are absent when Isolated Projects is active.
+Any build logic that depends on that plugin must tolerate its absence, or be guarded as well.
+====
+
+[[sec:guarding_for_plugin_authors]]
+===== A note for plugin authors
+
+Be especially cautious about shipping such conditionals in a *published* plugin.
+A conditional baked into a published plugin changes behavior for every consuming build, and consumers cannot easily see or override it.
+This multiplies the complexity and divergent-behavior concerns above across the whole ecosystem.
+
+As a plugin author, strongly prefer making the plugin compatible with Isolated Projects over guarding.
+If you must guard, make the guarded behavior observable (for example, by logging a warning as shown above) and document it clearly, so that consumers are not surprised by build logic that silently changes when Isolated Projects is enabled.
+
 [[sec:vs_other_features]]
 == Isolated Projects and other Gradle features
 

@@ -588,6 +588,13 @@ include::{snippetsPath}/reference/plugin-development/reactingToBuildFeatures/gro
 <2> Accessing the `requested` status of a feature for reporting.
 <3> Using the `active` status of a feature to disable incompatible functionality.
 
+[WARNING]
+====
+Disabling functionality based on a feature's `active` status makes the plugin behave differently depending on whether the feature is enabled, which raises complexity and can lead to divergent build results.
+Treat such conditionals as a last resort, and prefer making the functionality compatible with the feature instead.
+For the <<isolated_projects.adoc#isolated_projects,Isolated Projects>> feature specifically, see <<isolated_projects.adoc#sec:guarding_build_logic,Guard incompatible build logic as a last resort>>.
+====
+
 [[build_feature_properties]]
 === Build feature properties
 
