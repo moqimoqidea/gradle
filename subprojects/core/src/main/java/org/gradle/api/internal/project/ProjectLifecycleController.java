@@ -40,6 +40,7 @@ import java.io.Closeable;
 public class ProjectLifecycleController implements Closeable {
     private final ServiceRegistry buildServices;
     private final StateTransitionController<State> controller;
+    private final ProjectLockGuard lockGuard;
     @Nullable
     private ProjectInternal project;
     @Nullable
@@ -49,8 +50,9 @@ public class ProjectLifecycleController implements Closeable {
         NotCreated, Created, Configured
     }
 
-    public ProjectLifecycleController(DisplayName displayName, StateTransitionControllerFactory factory, ServiceRegistry buildServices) {
+    public ProjectLifecycleController(DisplayName displayName, StateTransitionControllerFactory factory, ProjectLockGuard lockGuard, ServiceRegistry buildServices) {
         this.buildServices = buildServices;
+        this.lockGuard = lockGuard;
         controller = factory.newController(displayName, State.NotCreated);
     }
 
@@ -59,7 +61,7 @@ public class ProjectLifecycleController implements Closeable {
     }
 
     public void assertConfigured() {
-        controller.assertInStateOrLater(State.Configured);
+        controller.assertHasSeenState(State.Configured);
     }
 
     public void createMutableModel(
@@ -83,23 +85,25 @@ public class ProjectLifecycleController implements Closeable {
     }
 
     public ProjectInternal getMutableModel() {
-        controller.assertInStateOrLater(State.Created);
+        controller.assertHasSeenState(State.Created);
         return project;
     }
 
     public ProjectInternal getMutableModelEvenAfterFailure() {
-        controller.assertInStateOrLaterIgnoringFailures(State.Created);
+        controller.assertHasSeenStateIgnoringFailures(State.Created);
         return project;
     }
 
     public void ensureSelfConfigured() {
-        controller.maybeTransitionIfNotCurrentlyTransitioning(State.Created, State.Configured, () -> project.evaluateUnchecked());
+        controller.maybeTransitionIfNotCurrentlyTransitioning(State.Created, State.Configured, () -> lockGuard.withProjectLock(() -> project.evaluateUnchecked()));
     }
 
     public void ensureTasksDiscovered() {
         ensureSelfConfigured();
-        project.getTasks().discoverTasks();
-        project.bindAllModelRules();
+        lockGuard.withProjectLock(() -> {
+            project.getTasks().discoverTasks();
+            project.bindAllModelRules();
+        });
     }
 
     @Override
@@ -112,5 +116,13 @@ public class ProjectLifecycleController implements Closeable {
                 projectScopeServices = null;
             }
         }
+    }
+
+    /**
+     * Runs an action while holding the owning project's state lock.
+     */
+    @FunctionalInterface
+    public interface ProjectLockGuard {
+        void withProjectLock(Runnable action);
     }
 }

@@ -41,10 +41,10 @@ class IsolatedProjectsAccessIntegrationTest extends AbstractIsolatedProjectsInte
         """
 
         when:
-        isolatedProjectsFails("help")
+        isolatedProjectsFailsUsing(mode, "help")
 
         then:
-        fixture.assertStateStoredAndDiscarded {
+        fixture.assertIsolatedProjectsProblems(mode) {
             projectsConfigured(":", ":sub", ":sub:par")
             problem("Build file 'sub/par/build.gradle': line 2: Project ':sub:par' cannot access 'Project.findProperty' functionality on another project '$parentPath'", 1)
         }
@@ -54,5 +54,33 @@ class IsolatedProjectsAccessIntegrationTest extends AbstractIsolatedProjectsInte
         "rootProject"   | ":"
         "parent"        | ":sub"
         "parent.parent" | ":"
+
+        combined:
+        mode << ALL_MODES
+    }
+
+    @Issue("https://github.com/gradle/gradle/issues/29154")
+    def "exclude task option does not cause isolated projects violation"() {
+        settingsFile """
+            include(":sub")
+        """
+
+        buildFile """
+            task build
+        """
+
+        buildFile "sub/build.gradle", """
+            task test
+            task build { dependsOn test }
+        """
+
+        when:
+        isolatedProjectsRun(":sub:build", "-x", "test")
+
+        then:
+        fixture.assertStateStored {
+            projectsConfigured(":", ":sub")
+        }
+        result.assertTasksNotScheduled(":sub:test")
     }
 }

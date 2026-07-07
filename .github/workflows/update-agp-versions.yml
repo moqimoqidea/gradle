@@ -18,52 +18,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
-          persist-credentials: false
           fetch-depth: 0
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: arn:aws:iam::992382829881:role/GHASecrets_gradle_all
-          aws-region: "eu-central-1"
-      - name: Get secrets
-        uses: aws-actions/aws-secretsmanager-get-secrets@v3
-        with:
-          secret-ids: |
-            BOT_GRADLE_GITHUB_TOKEN, gha/gradle/_all/BOT_GRADLE_GITHUB_TOKEN
       - name: Setup java
         uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: 17
+          java-version: 25
       - name: Update AGP versions
         run: ./gradlew updateAgpVersions
-      - name: Create Pull Request
-        id: create-pull-request
-        uses: peter-evans/create-pull-request@v8
+      - name: Open bot PR
+        uses: ./.github/actions/open-pr
         with:
-          token: ${{ env.BOT_GRADLE_GITHUB_TOKEN }}
-          signoff: true
-          sign-commits: true
-          commit-message: "Update AGP versions"
-          add-paths: |
-            gradle/dependency-management/agp-versions.properties
-            platforms/documentation/docs/src/docs/userguide/releases/compatibility.adoc
-          title: "Update tested AGP versions"
-          body: "Update tested AGP versions"
-          delete-branch: true
-          branch: "tide/update-agp"
-          team-reviewers: bt-tide
-          labels: |
-            a:chore
-            in:performance-test
-            in:smoke-test
-            re:android
-      - name: Trigger test and merge
-        if: ${{ steps.create-pull-request.outputs.pull-request-number }}
-        uses: peter-evans/create-or-update-comment@v5
-        with:
-          token: ${{ env.BOT_GRADLE_GITHUB_TOKEN }}
-          issue-number: ${{ steps.create-pull-request.outputs.pull-request-number }}
-          body: '@bot-gradle test and merge'
+          branch: tide/update-agp
+          title: Update tested AGP versions
+          message: Update AGP versions
+          reviewer: gradle/bt-tide
+          labels: a:chore,re:android,in:performance-test,in:smoke-test,to-triage

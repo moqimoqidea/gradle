@@ -16,6 +16,7 @@
 
 package org.gradle.api.internal.project;
 
+import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Iterables;
 import org.gradle.api.artifacts.component.ProjectComponentIdentifier;
 import org.gradle.api.internal.artifacts.DefaultProjectComponentIdentifier;
@@ -73,7 +74,7 @@ class DefaultProjectState implements ProjectState, Closeable {
         this.descriptor = descriptor;
         this.identity = descriptor.getIdentity();
         this.projectFactory = projectFactory;
-        this.controller = new ProjectLifecycleController(getDisplayName(), stateTransitionControllerFactory, buildServices);
+        this.controller = new ProjectLifecycleController(getDisplayName(), stateTransitionControllerFactory, this::withProjectLock, buildServices);
         this.workerLeaseService = workerLeaseService;
         this.projectStateLookup = projectStateLookup;
         this.allProjectsLock = workerLeaseService.getAllProjectsLock(owner.getIdentityPath());
@@ -156,6 +157,20 @@ class DefaultProjectState implements ProjectState, Closeable {
     }
 
     @Override
+    public Set<ProjectState> getAllProjects() {
+        ImmutableSortedSet.Builder<ProjectState> result = ImmutableSortedSet.orderedBy(ProjectOrderingUtil::compare);
+        collectAllProjects(this, result);
+        return result.build();
+    }
+
+    private static void collectAllProjects(ProjectState project, ImmutableSortedSet.Builder<ProjectState> result) {
+        result.add(project);
+        for (ProjectState child : project.getUnorderedChildProjects()) {
+            collectAllProjects(child, result);
+        }
+    }
+
+    @Override
     public boolean hasChildren() {
         return !descriptor.getChildren().isEmpty();
     }
@@ -231,6 +246,13 @@ class DefaultProjectState implements ProjectState, Closeable {
     @Override
     public <S extends @Nullable Object> S fromMutableState(Function<? super ProjectInternal, ? extends S> function) {
         return runWithModelLock(() -> function.apply(getMutableModel()));
+    }
+
+    private void withProjectLock(Runnable action) {
+        runWithModelLock(() -> {
+            action.run();
+            return null;
+        });
     }
 
     @Override

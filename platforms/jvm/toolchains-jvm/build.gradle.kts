@@ -61,6 +61,7 @@ dependencies {
     testImplementation(testFixtures(projects.core))
     testImplementation(testFixtures(projects.logging))
     testImplementation(testFixtures(projects.toolchainsJvmShared))
+    testImplementation(testFixtures(projects.languageJava))
 
     testFixturesImplementation(projects.native)
 
@@ -90,6 +91,4 @@ packageCycles {
     excludePatterns.add("org/gradle/jvm/toolchain/**")
 }
 
-tasks.isolatedProjectsIntegTest {
-    enabled = false
-}
+

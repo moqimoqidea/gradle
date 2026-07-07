@@ -19,10 +19,12 @@ package org.gradle.integtests.resolve.transform
 import org.gradle.api.logging.configuration.ConsoleOutput
 import org.gradle.integtests.fixtures.RichConsoleStyling
 import org.gradle.integtests.fixtures.console.AbstractConsoleGroupedTaskFunctionalTest
+import org.gradle.integtests.fixtures.modes.ToBeFixedForIsolatedProjects
 import org.gradle.test.fixtures.server.http.BlockingHttpServer
 
 import static org.gradle.test.fixtures.ConcurrentTestUtil.poll
 
+@ToBeFixedForIsolatedProjects(because = "Transforms registered and configured in root project using allprojects. This allows transform tests to use the same artifact transform implementation Class.")
 class TransformLoggingIntegrationTest extends AbstractConsoleGroupedTaskFunctionalTest {
     ConsoleOutput consoleType
 

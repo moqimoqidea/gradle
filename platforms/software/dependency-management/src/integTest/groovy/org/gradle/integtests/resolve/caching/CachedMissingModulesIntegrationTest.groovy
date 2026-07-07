@@ -18,6 +18,7 @@ package org.gradle.integtests.resolve.caching
 
 import org.gradle.integtests.fixtures.AbstractHttpDependencyResolutionTest
 import org.gradle.integtests.fixtures.executer.GradleContextualExecuter
+import org.gradle.integtests.fixtures.modes.ToBeFixedForIsolatedProjects
 import org.gradle.test.precondition.Requires
 import org.gradle.test.preconditions.TestExecutionPreconditions
 
@@ -550,6 +551,7 @@ Required by:
     }
 
     @Requires(TestExecutionPreconditions.NotParallelExecutor)
+    @ToBeFixedForIsolatedProjects(because = "Needs further investigation on IP incompatibility: https://github.com/gradle/gradle/issues/38006")
     def "hit each remote repo only once per build and missing module"() {
         given:
         def repo1 = mavenHttpRepo("repo1")

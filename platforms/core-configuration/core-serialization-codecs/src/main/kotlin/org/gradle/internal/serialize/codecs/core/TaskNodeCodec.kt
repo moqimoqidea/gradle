@@ -22,12 +22,15 @@ import org.gradle.api.internal.GeneratedSubclasses
 import org.gradle.api.internal.TaskInputsInternal
 import org.gradle.api.internal.TaskInternal
 import org.gradle.api.internal.TaskOutputsInternal
+import org.gradle.api.internal.file.FileCollectionFactory
 import org.gradle.api.internal.project.ProjectInternal
 import org.gradle.api.internal.provider.Providers
 import org.gradle.api.internal.tasks.TaskDestroyablesInternal
 import org.gradle.api.internal.tasks.TaskInputFilePropertyBuilderInternal
 import org.gradle.api.internal.tasks.TaskLocalStateInternal
+import org.gradle.api.provider.Provider
 import org.gradle.api.specs.Spec
+import org.gradle.api.tasks.TaskProvider
 import org.gradle.execution.plan.LocalTaskNode
 import org.gradle.execution.plan.TaskNodeFactory
 import org.gradle.internal.cc.base.serialize.IsolateOwners
@@ -110,11 +113,7 @@ class TaskNodeCodec(
                     writeOnlyIfSpec(task)
                     beanStateWriterFor(task.javaClass).run {
                         writeStateOf(task)
-                        withTaskReferencesAllowed {
-                            writeRegisteredPropertiesOf(
-                                task
-                            )
-                        }
+                        writeRegisteredPropertiesOf(task)
                     }
                     writeTaskActions(task)
                     writeDestroyablesOf(task)
@@ -383,7 +382,7 @@ suspend fun WriteContext.writeRegisteredPropertiesOf(task: Task) {
         property.run {
             when (this) {
                 is RegisteredProperty.InputFile -> {
-                    val finalValue = DeferredUtil.unpackNestableDeferred(propertyValue)
+                    val finalValue = adaptInputFileValueForSerialization(DeferredUtil.unpackNestableDeferred(propertyValue), filePropertyType)
                     writeInputProperty(propertyName, finalValue)
                     writeBoolean(optional)
                     writeBoolean(true)
@@ -409,12 +408,67 @@ suspend fun WriteContext.writeRegisteredPropertiesOf(task: Task) {
     val outputProperties = collectRegisteredOutputsOf(task)
     writeCollection(outputProperties) { property ->
         property.run {
-            val finalValue = DeferredUtil.unpackNestableDeferred(propertyValue)
+            val finalValue = adaptOutputFileValueForSerialization(DeferredUtil.unpackNestableDeferred(propertyValue), filePropertyType)
             writeOutputProperty(propertyName, finalValue)
             writeBoolean(optional)
             writeEnum(filePropertyType)
         }
     }
+}
+
+/**
+ * Adapts an `inputs.files(...)` property value into a form that can be safely serialized by the configuration cache.
+ *
+ * The raw value registered with `TaskInputs.files(...)` can be anything `FileCollectionFactory.resolvingLeniently(...)`
+ * accepts. Wrapping the value in a resolving [FileCollection] up-front routes serialization through [FileCollectionCodec],
+ * which only serializes the resolved set of files and the task dependencies — never the source collection's
+ * mutable internals. This is semantically equivalent to what consumers of `TaskInputs` do at execution time
+ * via `FileParameterUtils.resolveInputFileValue`.
+ *
+ * One exception are [Provider] values. These are handled specially by the validation logic, so we have to preserve
+ * the shape. And yes, this means that `files(absentProvider)` fails and `files(listOf(absentProvider))` works.
+ * An exception to the exception is [TaskProvider], which it cannot be serialized directly but only inside a file collection.
+ * It is always present, so wrapping it is okay.
+ *
+ * Only applied to [InputFilePropertyType.FILES] — [InputFilePropertyType.FILE] and [InputFilePropertyType.DIRECTORY]
+ * expect a single path-like value on read, so wrapping in a [FileCollection] would break `inputs.file(...)` /
+ * `inputs.dir(...)`.
+ */
+private
+fun WriteContext.adaptInputFileValueForSerialization(value: Any?, filePropertyType: InputFilePropertyType): Any? {
+    if (value == null || filePropertyType != InputFilePropertyType.FILES || !needsFileCollectionWrapper(value)) {
+        return value
+    }
+    return isolate.owner.serviceOf<FileCollectionFactory>().resolvingLeniently(value)
+}
+
+
+/**
+ * Same as [adaptInputFileValueForSerialization] but for `outputs.files(...)` / `outputs.dirs(...)` property values.
+ *
+ * Only applied to the multi-valued [OutputFilePropertyType.FILES] and [OutputFilePropertyType.DIRECTORIES] —
+ * [OutputFilePropertyType.FILE] and [OutputFilePropertyType.DIRECTORY] expect a single path-like value on read,
+ * so wrapping in a [FileCollection] would break `outputs.file(...)` / `outputs.dir(...)`.
+ */
+private
+fun WriteContext.adaptOutputFileValueForSerialization(value: Any?, filePropertyType: OutputFilePropertyType): Any? {
+    if (value == null || filePropertyType == OutputFilePropertyType.FILE || filePropertyType == OutputFilePropertyType.DIRECTORY || !needsFileCollectionWrapper(value)) {
+        return value
+    }
+    return isolate.owner.serviceOf<FileCollectionFactory>().resolvingLeniently(value)
+}
+
+
+/**
+ * Checks if the input value needs to be wrapped in a file collection to properly serialize.
+ *
+ * [FileCollection]s aren't wrapped as it is pointless.
+ * [Provider]s except [TaskProvider] aren't wrapped because input validation has special handling for them.
+ * [TaskProvider]s must be wrapped because they cannot be serialized directly, and `inputs.files(taskProvider)` is idiomatic.
+ */
+private
+fun needsFileCollectionWrapper(value: Any): Boolean {
+    return value !is FileCollection && (value !is Provider<*> || value is TaskProvider<*>)
 }
 
 
@@ -577,13 +631,3 @@ fun createTask(project: ProjectInternal, taskName: String, taskClass: Class<out 
 }
 
 
-private
-inline fun IsolateContext.withTaskReferencesAllowed(action: () -> Unit) {
-    val ownerTask = isolate.owner as IsolateOwners.OwnerTask
-    try {
-        ownerTask.allowTaskReferences = true
-        action()
-    } finally {
-        ownerTask.allowTaskReferences = false
-    }
-}

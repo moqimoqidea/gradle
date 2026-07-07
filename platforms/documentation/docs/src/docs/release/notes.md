@@ -10,49 +10,20 @@
 <meta name="twitter:description" content="We are excited to announce Gradle @version@.">
 <meta name="twitter:image" content="https://gradle.org/assets/images/releases/gradle-default.png">
 
-Gradle @version@ is the first patch release for Gradle 9.6.0. (released [@releaseDate@](https://gradle.org/releases/)).
+We are excited to announce Gradle @version@ (released [@releaseDate@](https://gradle.org/releases/)).
 
-The following issues were resolved:
-
-- [Allow setting --non-interactive via Gradle property](https://github.com/gradle/gradle/issues/38270)
-- [Gradle 9.6.0 changes dependency-cache artifact permissions from 0644 to 0600](https://github.com/gradle/gradle/issues/38284)
-- [Deadlock can occur in DefaultBuildOperationQueue under certain circumstances](https://github.com/gradle/gradle/issues/38291)
-
-We recommend upgrading to Gradle @version@.
-
----
-
-This release improves [Configuration Cache](#configuration-cache-improvements) hit rates by precisely tracking project properties supplied through system properties and environment variables.
-
-The [CLI, logging, and problem reporting](#cli-logging-and-problem-reporting) gains a `--non-interactive` option (and `org.gradle.console.interactive` property) to disable interactive prompts when running Gradle in automated environments, support for the `NO_COLOR` environment variable to suppress color output, and sortable columns in HTML test reports.
-
-[Build authoring](#build-authoring-improvements) includes an important deprecation: implicit property and method lookup in parent projects now emits a warning and will be removed in Gradle 10. A new `NO_IMPLICIT_LOOKUP_IN_PARENT_PROJECTS` feature preview lets you adopt the Gradle 10 behavior early once related deprecations are addressed.
-
-[Plugin authors](#core-plugin-and-plugin-authoring-enhancements) get clearer validation errors when the `@Optional` annotation is misused on task properties.
-
-Finally, [security and infrastructure](#security-and-infrastructure) improvements reduce IO load from Gradle's file-based journals, delivering significant performance gains on low-IOPS storage typical of cloud CI runners.
+This release features [1](), [2](), ... [n](), and more.
 
 We would like to thank the following community members for their contributions to this release of Gradle:
-[Aharnish Solanki](https://github.com/Ahar28),
-[Benedikt Johannes](https://github.com/benediktjohannes),
-[Devendra Reddy Pennabadi](https://github.com/devareddy05),
-[Dmytro Rodionov](https://github.com/smplio),
-[Dreeam](https://github.com/Dreeam-qwq),
-[Elías Hernández Rodríguez](https://github.com/EliasHdzR),
-[Eng Zer Jun](https://github.com/Juneezee),
-[FinlayRJW](https://github.com/FinlayRJW),
-[Kamal Kansal](https://github.com/kamalkansal27),
-[Marcono1234](https://github.com/Marcono1234),
-[Nelson Osacky](https://github.com/runningcode),
-[Philip Wedemann](https://github.com/hfhbd),
-[Ravi](https://github.com/rkdfx),
-[Roberto Perez Alcolea](https://github.com/rpalcolea),
-[Ryan Schmitt](https://github.com/rschmitt),
-[Sebastian Schuberth](https://github.com/sschuberth),
-[seunghun.ham](https://github.com/seung-hun-h),
-[sk-reddy17](https://github.com/sk-reddy17),
-[Suvrat Acharya](https://github.com/Suvrat1629),
-[Vedant Madane](https://github.com/VedantMadane).
+
+<!-- 
+Include only their name, impactful features should be called out separately below.
+ [Some person](https://github.com/some-person)
+
+THIS LIST SHOULD BE ALPHABETIZED BY [PERSON NAME] - the docs:updateContributorsInReleaseNotes task will enforce this ordering, which is case-insensitive.
+-->
+
+[sk-reddy17](https://github.com/sk-reddy17)
 
 Be sure to check out the [public roadmap](https://roadmap.gradle.org) for insight into what's planned for future releases.
 
@@ -70,197 +41,377 @@ For Java, Groovy, Kotlin, and Android compatibility, see the [full compatibility
 
 ## New features and usability improvements
 
+<!-- ================== TEMPLATE =============================
+
+Do not add breaking changes or deprecations here! Add them to the upgrade guide instead.
+
+Find the best fitting section for your feature below, then, fill it in.
+
+### SECTION TITLE
+
+#### FILL-IN-FEATURE
+> HIGHLIGHT the use case or existing problem the feature solves.
+> EXPLAIN how the new release addresses that problem or use case.
+> PROVIDE a screenshot or snippet illustrating the new feature, if applicable.
+> LINK to the full documentation for more details.
+
+To embed images, add the image to the `release-notes-assets` folder, then add the line below.
+![image.png](release-notes-assets/image.png)
+
+To embed videos, use the macros below. 
+You can extract the URL from YouTube by clicking the "Share" button.
+@youtube(Summary,6aRM8lAYyUA?si=qeXDSX8_8hpVmH01)@
+
+================== END TEMPLATE ========================== -->
+
+
+<!-- =========================================================
+ADD RELEASE FEATURES BELOW
+vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv -->
+
 ### Configuration Cache improvements
 Gradle provides a [Configuration Cache](userguide/configuration_cache.html) that improves build time by caching the result of the configuration phase and reusing it for subsequent builds.
 
-#### Improved hit rates for project properties set via system properties and environment variables
-[Project properties](userguide/build_environment.html#sec:project_properties) can be supplied not only on the command line with `-P` or in `gradle.properties` files, but also through `org.gradle.project.<name>` system properties and `ORG_GRADLE_PROJECT_<name>` environment variables.
+#### `ResolutionResult` is fully Configuration Cache compatible
 
-Previously, changing any such system property or environment variable invalidated the [Configuration Cache](userguide/configuration_cache.html), even if the affected project property was never used during the configuration phase.
-
-Consider the following Kotlin DSL example:
+A [`ResolutionResult`](javadoc/org/gradle/api/artifacts/result/ResolutionResult.html) may now be included directly as a task input when using Configuration Cache.
+Previously, its root [`ResolvedComponentResult`](javadoc/org/gradle/api/artifacts/result/ResolvedComponentResult.html) and [`ResolvedVariantResult`](javadoc/org/gradle/api/artifacts/result/ResolvedVariantResult.html) needed to be extracted and included on the task separately.
+This provides easy access to convenience APIs on `ResolutionResult`, avoiding the need to traverse the graph manually to access them.
 
 ```kotlin
-tasks.register("printValue") {
-    val value = providers.gradleProperty("value").orElse("N/A")
-    doLast {
-        println("value: ${value.get()}")
+// Before
+abstract class PreviousTask : DefaultTask() {
+    @get:Input
+    abstract val rootComponent: Property<ResolvedComponentResult>
+    @get:Input
+    abstract val rootVariant: Property<ResolvedVariantResult>
+
+    @TaskAction
+    fun execute() {
+        // No access to APIs on ResolutionResult, requiring manual graph traversal.
+    }
+}
+
+tasks.register<PreviousTask>("before") {
+    rootComponent = configurations.runtimeClasspath.flatMap { it.incoming.resolutionResult.rootComponent }
+    rootVariant = configurations.runtimeClasspath.flatMap { it.incoming.resolutionResult.rootVariant }
+}
+
+// After
+abstract class NewTask : DefaultTask() {
+    @get:Input
+    abstract val resolutionResult: Property<ResolutionResult>
+
+    @TaskAction
+    fun traverse() {
+        // Access to convenience APIs on ResolutionResult.
+        resolutionResult.get().allDependencies
+        resolutionResult.get().allComponents
+    }
+}
+
+tasks.register<NewTask>("after") {
+    resolutionResult = configurations.runtimeClasspath.map { it.incoming.resolutionResult }
+}
+```
+
+#### Source dependencies are compatible with the Configuration Cache
+
+Source dependencies now work with the [Configuration Cache](userguide/configuration_cache.html).
+
+Source dependencies let a build resolve a dependency by building it directly from a version control repository.
+They are declared with a `sourceControl { vcsMappings { ... } }` block in the settings file.
+
+A build that maps a dependency to a Git repository now stores and reuses a Configuration Cache entry like any other build:
+
+```kotlin
+// settings.gradle.kts
+sourceControl {
+    vcsMappings {
+        withModule("org.example:lib") {
+            from(GitVersionControlSpec::class) {
+                url = uri("https://github.com/example/lib.git")
+            }
+        }
     }
 }
 ```
 
-Previous versions of Gradle were unable to reuse the cache entry when re-running with a different value passed via a system property or environment variable:
+When a source dependency is selected with a dynamic selector — a branch, `latest.integration`, or a version range — the resolved commit can move between builds, so Gradle always invalidates the Configuration Cache entry for that build and re-resolves it, mirroring how [dynamic versions](userguide/dependency_versions.html) of external dependencies are handled.
+A source dependency pinned to a static version reuses the cached entry until an input such as the `vcsMappings` configuration or the resolved upstream commit changes.
 
-```shell
-$ ./gradlew --configuration-cache printValue -Dorg.gradle.project.value=1
+See the [Configuration Cache](userguide/configuration_cache.html) chapter in the Gradle User Manual for more details.
 
-Calculating task graph as configuration cache cannot be reused because the set of system properties prefixed by 'org.gradle.project.' has changed: 'org.gradle.project.value' was added.
+### Isolated Projects improvements
+Gradle provides [Isolated Projects](userguide/isolated_projects.html), an incubating feature that enables parallel project configuration.
 
-> Task :printValue
-value: 1
+#### Isolated Projects is now incubating
 
-...
-Configuration cache entry stored.
+Isolated Projects has graduated from experimental to incubating.
+It can now be enabled with the stable `org.gradle.isolated-projects` property and the new `--isolated-projects` CLI option, dropping the `.unsafe.` segment from the previous names.
+
+```properties
+# gradle.properties
+org.gradle.isolated-projects=true
 ```
 
-In this release, Gradle detects that the `value` property is never read during the configuration phase and reuses the existing cache entry, regardless of how the property was supplied:
+The legacy `org.gradle.unsafe.isolated-projects` property names are now deprecated and will be removed in a future release.
+They continue to work as aliases for now.
+See the [upgrade guide](userguide/upgrading_version_9.html#deprecated_unsafe_isolated_projects_properties) for the full list of renamed properties.
 
-```shell
-$ ./gradlew --configuration-cache printValue -Dorg.gradle.project.value=2
+#### Isolated Projects now offers three modes for handling constraint violations
 
-Reusing configuration cache.
+Builds adopting Isolated Projects typically contain [constraint violations](userguide/isolated_projects.html#sec:constraint_violations) that must be fixed over time.
+Isolated Projects now offers three modes, each suited to a different stage of that journey:
 
-> Task :printValue
-value: 2
+- **Fail-fast** — the default. Project configuration runs in parallel and the build fails as soon as a violation is detected, guaranteeing reliable build results.
+- **[Diagnostics](userguide/isolated_projects.html#sec:diagnostics_mode)** (`org.gradle.isolated-projects.diagnostics`) — project configuration runs sequentially and the build continues past
+  violations, reporting all of them deterministically. Use this to discover what needs fixing during migration.
+- **[Dangerously ignore problems](userguide/isolated_projects.html#sec:dangerously_ignore_problems)** (`org.gradle.isolated-projects.dangerously-ignore-problems`) — violations are reported but
+  do not fail the build, and parallel configuration stays active. Use this to estimate the parallel build or IDE sync speedup before fixing every violation. Build outputs may be incorrect while
+  violations are ignored, so never use this mode to produce artifacts.
 
-...
-Configuration cache entry reused.
+The opt-in modes can also be combined, for example to complete an IDE sync that concurrency errors would otherwise interrupt:
+
+```properties
+# gradle.properties
+org.gradle.isolated-projects=true
+org.gradle.isolated-projects.diagnostics=true
+org.gradle.isolated-projects.dangerously-ignore-problems=true
 ```
 
-The same precise tracking now also applies to `ORG_GRADLE_PROJECT_*` environment variables, bringing parity with the improvements introduced for `-P` properties in Gradle 9.1.0 and for `gradle.properties` files in Gradle 9.4.0.
-The existing cache entry is reused even when the property is supplied through an environment variable:
+In all modes, the severity of Isolated Projects violations is now independent of the Configuration Cache `--configuration-cache-problems=warn` flag.
 
-```shell
-$ ORG_GRADLE_PROJECT_value=3 ./gradlew --configuration-cache printValue
-Reusing configuration cache.
-> Task :printValue
-value: 3
-...
-Configuration cache entry reused.
+### Test reporting and execution
+Gradle provides a [set of features and abstractions](userguide/java_testing.html) for testing JVM code, along with test reports to display results.
+
+#### Test framework initialization failures for TestNG, JUnit 4, and JUnit Platform are always logged to the console
+
+Gradle's [test logging](userguide/java_testing.html#sec:test_logging) now surfaces test-framework startup failures from TestNG, JUnit 4, and JUnit Platform even when the default granularity would otherwise hide them.
+
+Previously, when these frameworks failed to initialize (for example, when a TestNG test class threw an exception from its constructor, a JUnit 4 suite could not be started, or a Jupiter `@BeforeAll` lifecycle hook aborted a container) the failure was silently filtered out by the default granularity.
+Users would see only `> There were failing tests` and had to read the XML report to find the underlying cause:
+
+```text
+> Task :test FAILED
+
+> There were failing tests. See the report at: file:///.../build/reports/tests/test/index.html
+
+FAILURE: Build failed with an exception.
 ```
 
-For builds that pass many project properties on the command line or via environment variables, particularly in CI, this change will significantly improve cache hit rates.
+These framework-startup failures now bypass the granularity filter and are always written to the console by default:
 
-See the [Reading System Properties and Environment Variables](userguide/configuration_cache_requirements.html#config_cache:requirements:reading_sys_props_and_env_vars) section in the Gradle User Manual for more information.
+```text
+> Task :test
+
+ExampleTest > initializationError FAILED
+    framework-startup org.testng.TestNGException: Cannot instantiate class ExampleTest
+        at org.testng.internal.ObjectFactoryImpl.newInstance(...)
+        ...
+```
+
+The `testLogging.events` predicate still applies, explicitly silencing `FAILED` events is honored.
+
+The new `TestFailureDetails.isFrameworkFailure()` predicate exposes this distinction to Tooling-API and Build-Scan consumers, who may render framework-startup failures differently from ordinary test failures.
+
+See the [Test logging](userguide/java_testing.html#sec:test_logging) section in the Gradle User Manual for more details.
+
+#### TestNG `threadPoolFactoryClass` works with TestNG 7.10 and later
+TestNG 7.10 replaced its thread-pool factory setter (`setExecutorFactoryClass(String)`) with a new API (`setExecutorServiceFactory(IExecutorServiceFactory)`). This release adds support for thread pool factories implementing this API on supporting TestNG versions.
+
+Gradle now detects which API the runtime TestNG version exposes and handles it accordingly:
+
+- On TestNG 7.10 and later, the configured class must implement `org.testng.IExecutorServiceFactory`.
+- On TestNG 7.0 through 7.9, the configured class must implement `org.testng.thread.IExecutorFactory`.
+
+The test task configuration remains unchanged — only the interface the user-supplied class must implement differs across TestNG versions:
+
+```kotlin
+tasks.named<Test>("test") {
+    useTestNG {
+        threadPoolFactoryClass = "com.example.MyExecutorServiceFactory"
+    }
+}
+```
 
 ### CLI, logging, and problem reporting
 Gradle provides an intuitive [command-line interface](userguide/command_line_interface.html), detailed [logs](userguide/logging.html), and a structured [problems report](userguide/reporting_problems.html#sec:generated_html_report) that helps developers quickly identify and resolve build issues.
 
-#### Non-interactive mode
-Gradle now supports a `--non-interactive` [command-line](userguide/command_line_interface.html) option, and a corresponding `org.gradle.console.interactive` [Gradle property](userguide/build_environment.html#sec:gradle_configuration_properties), to disable all interactive console prompting.
-This is useful for running Gradle in automated environments such as CI pipelines, scripts, and AI agents where no user input is available.
+#### Source locations for more problems
 
-See the [Non-interactive mode](userguide/command_line_interface.html#sec:non_interactive) section in the Gradle User Manual for more information.
+To keep stack trace capture affordable, Gradle attached a source location to only the first 50 problems per build, so builds that report many problems (deprecations especially) left most of them without a file and line.
 
-#### NO_COLOR support
-Gradle now honors the `NO_COLOR` environment variable following the [no-color.org](https://no-color.org/) convention.
-When `NO_COLOR` is set and non-empty, Gradle suppresses color output while preserving other styling (bold, underline) and rich features (progress bars, animations).
+Gradle now captures a source location for up to 2000 additional problems past that cap.
+The capture mechanism is far cheaper than a full stack trace, so the added coverage has negligible cost.
+As a result, the [console](userguide/command_line_interface.html), the [problems report](userguide/reporting_problems.html#sec:generated_html_report), and the [Tooling API](userguide/third_party_integration.html) show a source location for many more problems than before.
 
-![NO-COLOR Screenshot](release-notes-assets/no-color-screenshot.png)
+![Problems report listing many problems with their source locations](release-notes-assets/problems-locations.png)
 
-See the [Environment variables](userguide/build_environment.html#sec:gradle_environment_variables) section in the Gradle User Manual for more information.
+Run with `--warning-mode=all` to remove the limit and capture a source location for every problem.
+Past the cap, including under `--warning-mode=all` and `fail`, the capture keeps the originating build logic down to the calling script, enough to locate the problem, rather than the full call chain.
 
-#### Sortable columns in HTML test reports
-The [HTML test report](userguide/java_testing.html#test_reporting) generated by the [`Test`](javadoc/org/gradle/api/tasks/testing/Test.html) task now supports sorting by clicking column headers.
-
-Clicking a column header sorts rows by that column.
-A second click reverses the direction, and a third click restores the original order.
-
-Numeric columns (Tests, Failures, Skipped, Duration) default to descending on first click so the most interesting values surface first.
-Success rate defaults to ascending so flaky or broken classes appear at the top.
-
-![Test report sorting](release-notes-assets/test-report-sorting.png)
-
-This makes it easier to identify problematic test classes in large projects without manually scanning through the report.
-
-See the [Test reporting](userguide/java_testing.html#test_reporting) section in the Gradle User Manual for more information.
+See the [CLI reference](userguide/command_line_interface.html#sec:command_line_warnings) in the Gradle User Manual for more details.
 
 ### Build authoring improvements
 Gradle provides [rich APIs](userguide/getting_started_dev.html) for build engineers and plugin authors, enabling the creation of custom, reusable build logic and better maintainability.
 
-#### Deprecation of implicit lookup of properties and methods in parent projects
-In Gradle's [Groovy DSL](userguide/groovy_build_script_primer.html), when a child project's build script references a property or method that isn't defined locally, the resolution mechanism walks up the parent projects looking for a match.
-For example:
+#### Custom timestamps for reproducible archives
 
-```groovy
-// build.gradle (root project)
-ext.foo = "hello"
+Gradle produces [reproducible archives](userguide/working_with_files.html#sec:reproducible_archives) by default, using fixed timestamps for all entries.
+However, some environments, such as those following the [SOURCE_DATE_EPOCH](https://reproducible-builds.org/specs/source-date-epoch/) specification, require a meaningful, verifiable timestamp rather than a fixed default.
+
+Archive tasks now support a [`reproducibleFileTimestamp`](userguide/working_with_files.html#sec:reproducible_timestamp) property that lets you set a custom timestamp for every entry in the archive:
+
+```kotlin
+import java.time.Instant
+
+tasks.withType<AbstractArchiveTask>().configureEach {
+    reproducibleFileTimestamp = providers.environmentVariable("SOURCE_DATE_EPOCH").map {
+        Instant.ofEpochSecond(it.toLong()).toEpochMilli()
+    }
+}
 ```
 
-```groovy
-// child/build.gradle
-println(foo) // Resolved through parent projects — now deprecated
+#### New APIs on `ResolvedArtifactResult`
+
+The [`ResolvedArtifactResult.getAttributes()`](javadoc/org/gradle/api/artifacts/result/ResolvedArtifactResult.html#getAttributes()) and [`ResolvedArtifactResult.getCapabilities()`](javadoc/org/gradle/api/artifacts/result/ResolvedArtifactResult.html#getCapabilities()) methods have been introduced to provide access to the attributes and capabilities of a resolved artifact without going through the [`ResolvedArtifactResult.getVariant()`](javadoc/org/gradle/api/artifacts/result/ResolvedArtifactResult.html#getVariant()) method.
+`ResolvedArtifactResult.getVariant()` is still available, but will be deprecated in a future release.
+
+See the [Timestamp for files inside archives](userguide/working_with_files.html#sec:reproducible_timestamp) section in the Gradle User Manual for more details.
+
+#### New `getInputStream()` method on `BuildCacheEntryWriter`
+
+Authors of custom [`BuildCacheService`](javadoc/org/gradle/caching/BuildCacheService.html) implementations can now obtain cache entry content as an `InputStream` via [`BuildCacheEntryWriter.getInputStream()`](javadoc/org/gradle/caching/BuildCacheEntryWriter.html#getInputStream()), as an alternative to writing to an `OutputStream` via `writeTo`.
+Consuming an `InputStream` can be more efficient for I/O, especially for asynchronous HTTP clients.
+
+### Platform and toolchain management
+Gradle provides comprehensive support for [Native development](userguide/building_cpp_projects.html) and [JVM languages](userguide/building_java_projects.html), featuring automated [Toolchains](userguide/toolchains.html) for seamless JDK management.
+
+#### New lazy element provider for Domain Object Collections
+
+[`DomainObjectCollection.getElements()`](javadoc/org/gradle/api/DomainObjectCollection.html#getElements()) returns a `Provider<? extends Collection<T>>` and acts as an important bridge between the [Domain Object Collection](userguide/collections.html) and [Provider APIs](userguide/properties_providers.html).
+This API is similar to the existing [`FileCollection.getElements()`](javadoc/org/gradle/api/file/FileCollection.html#getElements()) method.
+
+The returned provider carries build dependencies, meaning dependencies carried by providers added via `addLater` and `addAllLater` are reflected in the returned `elements` provider:
+
+```kotlin
+val container = objects.domainObjectSet(MyType::class.java)
+container.addLater(someProvider)
+
+// Lazily access all elements as a Provider
+val allElements: Provider<out Collection<MyType>> = container.elements
+
+tasks.register("process") {
+    inputs.property("items", allElements)
+    doLast {
+        println(allElements.get())
+    }
+}
+```
+See the [Collections](userguide/collections.html#collection_types) section in the Gradle User Manual for more details.
+
+#### Java toolchain support for Groovydoc
+
+The [`Groovydoc`](dsl/org.gradle.api.tasks.javadoc.Groovydoc.html) task now supports [Java toolchains](userguide/toolchains.html), aligning it with `GroovyCompile`, `Javadoc`, and `ScalaDoc`.
+By default the task uses the project's configured toolchain, and it can also be configured per-task:
+
+```kotlin
+tasks.named<Groovydoc>("groovydoc") {
+    javaLauncher = javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
 ```
 
-This behavior is not unique to Groovy DSL, as this inherently comes from how `findProperty()` and related methods work.
-However, such implicit inheritance creates hidden coupling between projects and makes builds harder to reason about (a typo silently resolves to an ancestor's definition instead of failing).
+As `Groovydoc` now runs in a separate worker process, a new incubating `maxMemory` property is available to control the heap size of that process for larger code bases:
 
-Starting in Gradle 9.6.0, both implicit references and explicit APIs (`findProperty()`, `property()`, `hasProperty()`) emit a deprecation warning when they get resolved from parent projects.
-This behavior will be removed in Gradle 10.
-
-See the [upgrade guide](userguide/upgrading_version_9.html#deprecated_implicit_lookup_in_parent_projects) for migration paths, including `gradle.properties`, convention plugins, and explicit references.
-
-##### Opt into Gradle 10 behavior by disabling implicit lookup in parent projects
-Once you have addressed all related deprecations, you can enable the new `NO_IMPLICIT_LOOKUP_IN_PARENT_PROJECTS` feature preview to adopt the Gradle 10 behavior early.
-
-This prevents new accidental implicit lookups from parent projects:
-
-```groovy
-// settings.gradle[.kts]
-enableFeaturePreview("NO_IMPLICIT_LOOKUP_IN_PARENT_PROJECTS")
+```kotlin
+tasks.named<Groovydoc>("groovydoc") {
+    maxMemory = "1g"
+}
 ```
-
-#### Groovy DSL type coercions for lazy properties
-Gradle's [lazy property](userguide/lazy_configuration.html) types (`Property<T>`, `ListProperty<T>`, `SetProperty<T>`) previously required exact type matches when assigning values in the [Groovy DSL](userguide/groovy_build_script_primer.html).
-This meant that common idioms that worked with eager properties would fail with `IllegalArgumentException` when a plugin author migrated to lazy properties.
-
-Gradle now automatically coerces values in the following cases:
-
-**String to File**: A `String` assigned to a `Property<File>`, `RegularFileProperty`, or `DirectoryProperty` is resolved relative to the project directory:
-
-```groovy
-task.workingDir = '../my-build'
-```
-
-**Single value to collection**: A single `T` or `T[]` assigned to a `ListProperty<T>` or `SetProperty<T>` is wrapped into a one-element collection:
-
-```groovy
-task.filter.includePatterns = 'Foo'
-task.filter.includePatterns = ['Foo', 'Bar'] as String[]
-```
-
-These coercions bring the Groovy DSL experience for lazy properties closer to what users expect from eager properties, making it easier for plugin authors to migrate to the [lazy configuration](userguide/lazy_configuration.html) API without breaking their users' build scripts.
 
 ### Core plugin and plugin authoring enhancements
 Gradle provides a comprehensive plugin system, including built-in [Core Plugins](userguide/plugin_reference.html) for standard tasks and powerful APIs for creating custom plugins.
 
-#### Improved validation errors for `@Optional` annotation misuse
-The [`validatePlugins`](userguide/java_gradle_plugin.html#sec:plugin_validation) task now produces more specific error messages when the `@Optional` annotation is used incorrectly on task properties.
-
-If a property is annotated with only `@Optional` and no input or output annotation, Gradle explains that `@Optional` is a modifier annotation with no effect on its own:
-
-```text
-Type 'MyTask' property 'badProperty' is missing an input or output annotation.
-
-Reason: @Optional is a modifier annotation and has no effect without an input or output annotation.
-
-Possible solutions:
-  1. Add an input or output annotation.
-  2. Replace @Optional with @Internal for ignoring this property.
-```
-
-Similarly, combining `@Internal` with `@Optional` now produces a dedicated error explaining that `@Optional` is redundant on properties excluded from up-to-date checks:
-
-```text
-Type 'MyTask' property 'badProperty' annotated with @Internal should not be also annotated with @Optional.
-
-Reason: @Internal properties are excluded from up-to-date checks; @Optional is redundant and not allowed here.
-```
-
-See the [Validating plugins](userguide/java_gradle_plugin.html#sec:plugin_validation) section in the Gradle User Manual for more information.
-
 ### Security and infrastructure
 Gradle provides robust [security features and underlying infrastructure](userguide/security.html) to ensure that builds are secure, reproducible, and easy to maintain.
 
-#### Performance improvements in cloud runners
-Gradle uses several file-based journals to track operations.
+#### Document the origin and reason of trusted PGP keys
 
-Through community feedback and our own analysis, we confirmed that the implementation used in Gradle was generating a high volume of I/O operations.
-On storage with limited IOPS, typical in cloud environments using network-attached block storage such as AWS EBS, this led to I/O throttling and significant slowdowns during disk-heavy operations.
+Gradle’s [dependency verification](userguide/dependency_verification.html) helps you mitigate security risks by ensuring downloaded artifacts match expected checksums or are signed with trusted keys.
 
-With this release, the implementation has been improved, resulting in significant performance gains on low IOPS storage and minor improvements across the board:
+Dependency verification metadata already lets you [annotate checksums](userguide/dependency_verification.html#sec:trusting-artifacts) with `origin` and `reason` attributes to document where a checksum was obtained and why it is trusted.
 
-![Gradle IO Optimizations](release-notes-assets/gradle-io-optimizations.png)
+Starting with this release, the same `origin` and `reason` attributes are also supported on the `<trusted-key>` and `<pgp>` elements, so you can record where a public key was verified (for example, the URL it was downloaded from) directly alongside the key:
+
+```xml
+<trusted-keys>
+   <trusted-key id="8756c4f765c9ac3cb6b85d62379ce192d401ab61"
+                group="com.github.javaparser"
+                origin="https://keyserver.ubuntu.com"
+                reason="Verified against the maintainer's website"/>
+</trusted-keys>
+```
+
+These attributes are purely informational: Gradle preserves them across read/write cycles but never uses them during verification.
+Existing verification metadata files continue to be read without changes; files written by this version of Gradle use the new `dependency-verification-1.4.xsd` schema.
+
+#### Dependency verification reports other trusted keys for the same module or group
+
+When [dependency verification](userguide/dependency_verification.html) fails because an artifact was signed with a key that could not be found on any key server, it can be hard to tell whether you are pulling a brand-new dependency for the first time or whether a previously trusted dependency has had its signing key rotated.
+
+Gradle now appends the number of other keys you already trust for the failing artifact to the message, distinguishing keys trusted for the specific `group:module` from keys trusted for the whole `group`:
+
+```
+> On artifact foo-1.0.jar (org:foo:1.0) in repository 'maven': Artifact was signed with key '14F53F0824875D73' but it wasn't found in any key server so it couldn't be verified (1 other key is already trusted for module 'org:foo'; 3 other keys are already trusted for group 'org')
+```
+
+A non-zero count is a strong signal that the signing key has been rotated rather than that you are trusting the module or group for the first time, making it easier to react appropriately. This note now appears both in the console output and in the generated HTML verification report.
+
+See the [Verifying dependency signatures](userguide/dependency_verification.html#sec:signature-verification) section in the Gradle User Manual for more details.
+
+### Tooling and IDE integration
+Gradle provides [Tooling APIs](userguide/third_party_integration.html) that facilitate deep integration with modern IDEs and CI/CD pipelines.
+
+### General improvements
+Gradle provides various incremental updates and performance optimizations to ensure the continued reliability of the build ecosystem.
+
+#### Kotlin DSL accessor generation is no longer stored in the build cache
+
+Generating the [type-safe Kotlin DSL accessors](userguide/kotlin_dsl.html#type-safe-accessors) for a project produces Kotlin source files.
+For some projects those files can be sizeable, but their generation is fast.
+
+Storing and fetching those files adds its own overhead when the [Build Cache](userguide/build_cache.html#build_cache) is in use.
+That overhead alone is comparable to or higher than the cost of just regenerating the accessors.
+Gradle therefore no longer stores Kotlin DSL accessor generation in the Build Cache by default.
+
+Builds that use a remote Build Cache will regenerate accessors locally instead of downloading them; in-build deduplication of accessor generation is unaffected.
+Kotlin DSL script compilation continues to be cached as before.
+
+See the [Type-safe model accessors](userguide/kotlin_dsl.html#type-safe-accessors) section in the Gradle User Manual for more details.
+
+#### File system watching now works with a custom project cache directory
+
+[File system watching](userguide/file_system_watching.html) lets Gradle skip work between builds by tracking file changes from the operating system.
+The project cache directory, by default `.gradle/` in the root project, stores per-project state that Gradle reuses across builds.
+
+Some teams move this state out of the project tree using `--project-cache-dir` or `org.gradle.projectcachedir`, for example to keep build state on a separate or faster file system, or to share a project across users on CI.
+Until now, doing so was incompatible with file system watching, so these users could not benefit from it.
+
+Gradle has decoupled the two.
+File system watching works with any project cache directory location, including one on a file system that does not support watching:
+
+```bash
+$ ./gradlew build --watch-fs --project-cache-dir /custom/path
+```
+
+See the [Excluding files and directories](userguide/file_system_watching.html#sec:excluding_files_and_directories) section in the Gradle User Manual for more details.
+
+<!-- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ADD RELEASE FEATURES ABOVE
+========================================================== -->
 
 ## Promoted features
 
@@ -269,25 +420,34 @@ See the User Manual section on the "[Feature Lifecycle](userguide/feature_lifecy
 
 The following are the features that have been promoted in this Gradle release.
 
-* [`getNetworkTimeout()`](javadoc/org/gradle/api/tasks/wrapper/Wrapper.html#getNetworkTimeout()) in `Wrapper`
+<!--
+### Example promoted
+-->
+
+* [`project()`](javadoc/org/gradle/api/artifacts/dsl/DependencyHandler.html#project()) in `DependencyHandler`
+* [`project(String)`](javadoc/org/gradle/api/artifacts/dsl/DependencyHandler.html#project(java.lang.String)) in `DependencyHandler`
+* [`createProjectDependency()`](javadoc/org/gradle/api/artifacts/dsl/DependencyFactory.html#createProjectDependency()) in `DependencyFactory`
+* [`createProjectDependency(String)`](javadoc/org/gradle/api/artifacts/dsl/DependencyFactory.html#createProjectDependency(java.lang.String)) in `DependencyFactory`
 
 ## Documentation and training
 
-### User Manual
-The User Manual gained two significant additions in this release:
-
-The [Gradle on CI](userguide/gradle_on_ci.html) section returns with refreshed guidance for running Gradle in continuous integration environments, including dedicated pages for [GitHub Actions](userguide/github-actions.html), [Jenkins](userguide/jenkins.html), [TeamCity](userguide/teamcity.html), [GitLab CI](userguide/gitlab-ci.html), [CircleCI](userguide/circleci.html), [Travis CI](userguide/travis-ci.html), and [Docker](userguide/docker.html).
-
-The [Best Practices](userguide/best_practices.html) catalog grew with two new entries:
-
-- [Avoid `afterEvaluate`](userguide/best_practices_general.html) — explains why the callback creates ordering problems and what to use instead.
-- [Validate the Gradle Wrapper](userguide/best_practices_security.html) — updated guidance on verifying the integrity of the wrapper.
+<!--
+Add new docs, training, and best practices here
+-->
 
 ## Fixed issues
+
+<!--
+This section will be populated automatically
+-->
 
 ## Known issues
 
 Known issues are problems that were discovered post-release that are directly related to changes made in this release.
+
+<!--
+This section will be populated automatically
+-->
 
 ## External contributions
 
