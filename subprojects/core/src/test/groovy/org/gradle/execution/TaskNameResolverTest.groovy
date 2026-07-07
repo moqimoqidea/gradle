@@ -268,7 +268,7 @@ class TaskNameResolverTest extends Specification {
         def tasks = projectState.getMutableModel().getTasks()
 
         when:
-        def result = resolver.tryFindUnqualifiedTaskCheaply('task', projectState)
+        def result = resolver.findFirstTaskWithName('task', projectState)
 
         then:
         result
@@ -284,7 +284,7 @@ class TaskNameResolverTest extends Specification {
         def tasks = projectState.getMutableModel().getTasks()
 
         when:
-        def result = resolver.tryFindUnqualifiedTaskCheaply('task', projectState)
+        def result = resolver.findFirstTaskWithName('task', projectState)
 
         then:
         result
@@ -301,7 +301,7 @@ class TaskNameResolverTest extends Specification {
         def tasks = projectState.getMutableModel().getTasks()
 
         when:
-        def result = resolver.tryFindUnqualifiedTaskCheaply('task', projectState)
+        def result = resolver.findFirstTaskWithName('task', projectState)
 
         then:
         !result
