@@ -99,7 +99,7 @@ class BuildOperationJfrEmitterIntegrationTest extends DaemonIntegrationSpec {
 
     private static List<RecordedEvent> buildOperationEvents(File jfrFile) {
         RecordingFile.readAllEvents(jfrFile.toPath()).findAll { RecordedEvent event ->
-            event.eventType.name == "org.gradle.BuildOperation"
+            event.eventType.name == "org.gradle.internal.operations.BuildOperation"
         }
     }
 }
