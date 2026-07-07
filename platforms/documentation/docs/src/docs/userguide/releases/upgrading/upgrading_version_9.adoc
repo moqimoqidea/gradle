@@ -50,7 +50,8 @@ As a result, a custom project cache directory no longer disables file system wat
 Previously, `--project-cache-dir` (or `org.gradle.projectcachedir`) was incompatible with watching: passing `--watch-fs` alongside it failed the build, and leaving watching at its default silently disabled it.
 File system watching now follows the usual rules regardless of where the project cache directory is located.
 
-This also applies to source-dependency check-outs, which live under the project cache directory: their roots are no longer registered as watchable hierarchies.
+This applies to the project cache directory itself.
+Source-dependency check-outs, which live under the project cache directory but whose contents can change externally, remain watched as regular build directories.
 
 See <<file_system_watching.adoc#sec:excluding_files_and_directories,Excluding files and directories>> for details.
 
@@ -137,6 +138,27 @@ enableFeaturePreview("ENHANCED_GRAPH_ORDERING")
 
 === Deprecations
 
+[[deprecated_software_model]]
+==== Deprecation of the software model
+
+The Gradle software model — including the `model { }` DSL, link:{javadocPath}/org/gradle/model/RuleSource.html[`RuleSource`] plugins, and the native and JVM component types built on top of them — is deprecated and will be removed in Gradle 10.
+
+This affects the following groups of public API types:
+
+- The rule-authoring API in `org.gradle.model`: `RuleSource`, `ModelMap`, `ModelSet`, `ModelElement`, and the `@Model`, `@Mutate`, `@Defaults`, `@Finalize`, `@Validate`, `@Each`, `@Path`, `@RuleInput`, `@RuleTarget`, `@Rules`, `@Managed`, and `@Unmanaged` annotations.
+- The component-model base API in `org.gradle.platform.base` and `org.gradle.language.base`: `ComponentSpec`, `BinarySpec`, `LibrarySpec`, `ApplicationSpec`, `LanguageSourceSet`, and related container, builder, and annotation types.
+- The native component plugins: `c`, `cpp`, `objective-c`, `objective-cpp`, `assembler`, `windows-resources`, and `native-component`, along with their source-set, binary-spec, build-type, flavor, and prebuilt-library types in `org.gradle.nativeplatform` and `org.gradle.language.*`.
+- The native test plugins `cunit`, `cunit-test-suite`, `google-test`, and `google-test-test-suite`, along with the rule-based `test-suite-base` infrastructure in `org.gradle.testing.base`.
+- The `componentReport` and `dependentComponents` diagnostic tasks.
+
+Replace software-model-based builds with the current component model:
+
+- For C and {cpp}, use the link:{userManualPath}/cpp_application_plugin.html[`cpp-application`] and link:{userManualPath}/cpp_library_plugin.html[`cpp-library`] plugins.
+- For Swift, use the link:{userManualPath}/swift_application_plugin.html[`swift-application`] and link:{userManualPath}/swift_library_plugin.html[`swift-library`] plugins.
+- For native testing, use the link:{userManualPath}/cpp_unit_test_plugin.html[`cpp-unit-test`] and link:{userManualPath}/xctest_plugin.html[`xctest`] plugins.
+
+The new plugins configure components through ordinary Gradle extensions (`application { }`, `library { }`, `unitTest { }`) without the `model { }` block, integrate with the configuration cache, and support Gradle's standard dependency-management features.
+
 [[deprecated_unsafe_isolated_projects_properties]]
 ==== Deprecation of `org.gradle.unsafe.isolated-projects*` property names
 
@@ -160,6 +182,18 @@ They continue to be accepted as aliases for now and currently emit no warning.
 Update your `gradle.properties` and command-line invocations to the new names.
 
 See the <<isolated_projects.adoc#sec:enable, Enabling Isolated Projects>> section in the Gradle User Manual for the recommended setup.
+
+[[deprecated_custom_collection_types_with_cc]]
+==== Deprecation of serializing custom collection and map types with the configuration cache
+
+The configuration cache serializes a fixed set of standard collection, set, map, and queue types (such as `ArrayList`, `LinkedHashSet`, `LinkedHashMap`, and `ArrayDeque`) directly.
+A _custom_ subtype of one of these types — for example, `class MyList extends ArrayList<String> {}` — cannot be restored as its own type and is instead restored as the nearest standard type, losing any state or behavior the custom type adds.
+
+Referencing such a custom subtype from a task field or task action is now deprecated and will become an error in Gradle 10.
+
+To fix it, use a standard collection or map type instead of a custom subtype, and store any extra data in separate fields.
+
+See <<configuration_cache_requirements.adoc#config_cache:requirements:custom_collection_types, Custom Collection and Map Types>> for details.
 
 [[changes_9.6.0]]
 == Upgrading from 9.5.0 and earlier
