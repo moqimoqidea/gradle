@@ -47,6 +47,7 @@ public class ResilientBuildToolingModelController extends DefaultBuildToolingMod
         "org.gradle.kotlin.dsl.tooling.builders.internal.IsolatedScriptsModel"
     );
 
+
     private final FailureFactory failureFactory;
 
     public ResilientBuildToolingModelController(
@@ -154,7 +155,7 @@ public class ResilientBuildToolingModelController extends DefaultBuildToolingMod
             if (ownFailure != null) {
                 return ownFailure;
             }
-            return new GradleException("The build could not be configured; see the reported build failures for the underlying problems.");
+            return new GeneralConfigurationFailure();
         }
 
         @Override
@@ -192,6 +193,22 @@ public class ResilientBuildToolingModelController extends DefaultBuildToolingMod
                 .map(Failure::getOriginal)
                 .collect(toImmutableList());
             return ToolingModelScopeResult.withConfigurationFailures(clientResult, configurationFailures);
+        }
+    }
+
+    /**
+     * The failure reported for a project that has no configuration failure of its own. Stackless, since it
+     * exists only to carry this constant message to the client: the real failure travels separately as the
+     * build failure, so a stack trace here is never useful.
+     */
+    private static final class GeneralConfigurationFailure extends GradleException {
+        GeneralConfigurationFailure() {
+            super("The build could not be configured; see the reported build failures for the underlying problems.");
+        }
+
+        @Override
+        public Throwable fillInStackTrace() {
+            return this;
         }
     }
 
