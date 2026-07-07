@@ -56,9 +56,6 @@ class LightweightChecks(
                 }
                 script {
                     name = "CHECK_AI_ATTRIBUTION"
-                    // Temporarily disabled to unblock release->master merge PRs that carry
-                    // pre-existing AI attribution footers in their history.
-                    enabled = false
                     scriptContent =
                         """
                         set -eu
