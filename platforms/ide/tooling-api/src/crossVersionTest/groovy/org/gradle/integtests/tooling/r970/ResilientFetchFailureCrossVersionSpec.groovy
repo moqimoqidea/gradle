@@ -219,13 +219,81 @@ class CustomPlugin implements Plugin<Project> {
         treeContains(result, "c", "FAILURE(:c)")
         !treeContains(result, "c", "FAILURE(:b)")
 
-        and: "clean projects carry the general message, not either sibling's failure or the whole-build aggregate"
-        treeContains(result, "root", GENERAL_CONFIGURATION_FAILURE)
-        treeContains(result, "a", GENERAL_CONFIGURATION_FAILURE)
-        !treeContains(result, "root", "FAILURE(:b)")
-        !treeContains(result, "root", "FAILURE(:c)")
-        !treeContains(result, "a", "FAILURE(:b)")
-        !treeContains(result, "a", "FAILURE(:c)")
+        and: "clean projects carry exactly the general message and nothing else"
+        ["root", "a"].each { project ->
+            def node = result.failureTreeByProject[project]
+            assert node.message == GENERAL_CONFIGURATION_FAILURE
+            assert node.causes.isEmpty()
+        }
+    }
+
+    def "failures thrown from lifecycle hooks are reported as the failure of the project they configure"() {
+        given: "projects failing from hooks around their configuration, next to a clean one"
+        settingsKotlinFile.text = """
+            rootProject.name = "root"
+            include("a", "b", "c")
+
+            gradle.lifecycle.beforeProject {
+                if (name == "b") {
+                    throw RuntimeException("FAILURE(:b)")
+                }
+            }
+        """
+        file("a/build.gradle.kts").text = "// intentionally clean\n"
+        file("b/build.gradle.kts").text = "// intentionally clean, fails from the beforeProject hook\n"
+        file("c/build.gradle.kts").text = 'afterEvaluate { throw RuntimeException("FAILURE(:c)") }\n'
+
+        when:
+        fetchFailures(ISOLATED_PROJECTS_ON)
+
+        then: "the whole build fails to configure, so every project fails to be queried and the build fails"
+        thrown(BuildException)
+        def result = fetchResult
+        result.successfullyQueriedProjects == []
+        result.failedToQueryProjects.toSet() == ["root", "a", "b", "c"] as Set
+
+        and: "each hook failure is carried by the project being configured, not by its siblings"
+        treeContains(result, "b", "FAILURE(:b)")
+        !treeContains(result, "b", "FAILURE(:c)")
+        treeContains(result, "c", "FAILURE(:c)")
+        !treeContains(result, "c", "FAILURE(:b)")
+
+        and: "clean projects carry exactly the general message and nothing else"
+        ["root", "a"].each { project ->
+            def node = result.failureTreeByProject[project]
+            assert node.message == GENERAL_CONFIGURATION_FAILURE
+            assert node.causes.isEmpty()
+        }
+    }
+
+    def "a build-scoped configuration failure fails the build but no project reports it as its own"() {
+        given: "a failure raised by a build-scoped hook after every project configured cleanly"
+        settingsKotlinFile.text = """
+            rootProject.name = "root"
+            include("a", "b", "c")
+        """
+        file("build.gradle.kts").text = 'gradle.projectsEvaluated { throw RuntimeException("FAILURE(build)") }\n'
+        file("a/build.gradle.kts").text = "// intentionally clean\n"
+        file("b/build.gradle.kts").text = "// intentionally clean\n"
+        file("c/build.gradle.kts").text = "// intentionally clean\n"
+
+        when:
+        fetchFailures()
+
+        then: "the whole build fails to configure, so every project fails to be queried and the build fails"
+        def e = thrown(BuildException)
+        def result = fetchResult
+        result.successfullyQueriedProjects == []
+        result.failedToQueryProjects.toSet() == ["root", "a", "b", "c"] as Set
+
+        and: "the failure belongs to no single project, so every project reports the general message"
+        ["root", "a", "b", "c"].each { project ->
+            assert treeContains(result, project, GENERAL_CONFIGURATION_FAILURE)
+            assert !treeContains(result, project, "FAILURE(build)")
+        }
+
+        and: "the build still fails with the build-scoped failure: once from the build-scoped GradleBuild fetch and once shared by all project fetches"
+        countCauseMessages(e, "FAILURE(build)") == 2
     }
 
     private void fetchFailures(List<String> extraGradleProperties = []) {
