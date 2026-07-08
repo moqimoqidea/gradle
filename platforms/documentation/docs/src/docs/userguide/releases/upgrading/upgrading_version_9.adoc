@@ -221,16 +221,16 @@ See <<configuration_cache_requirements.adoc#config_cache:requirements:custom_col
 [[deprecated_startparameter_construction]]
 ==== Deprecation of creating and copying `StartParameter`
 
-The `StartParameter` for a build is provided by Gradle and is accessed through `Gradle.getStartParameter()`.
+Starting in Gradle 10, constructing new instances of link:{javadocPath}/org/gradle/StartParameter.html[`StartParameter`] will no longer be permitted.
 It was never intended to be instantiated or copied by build logic, but the public no-argument constructor and the `newInstance()` / `newBuild()` methods made that possible.
 
-These are now deprecated and will be removed in Gradle 10:
+The following have been deprecated for removal:
 
-- the public `StartParameter()` constructor;
-- `StartParameter.newInstance()`;
-- `StartParameter.newBuild()`.
+- the public link:{javadocPath}/org/gradle/StartParameter.html[`StartParameter()`] constructor
+- link:{javadocPath}/org/gradle/StartParameter.html#newInstance()[`StartParameter.newInstance()`]
+- link:{javadocPath}/org/gradle/StartParameter.html#newBuild()[`StartParameter.newBuild()`]
 
-Obtain the start parameter from the build (for example via `gradle.startParameter`) instead of constructing or copying one.
+The existing `StartParameter` instance for a build may be obtained via link:{javadocPath}/org/gradle/api/invocation/Gradle.html#getStartParameter()[`Gradle.getStartParameter()`] instead of constructing or copying one.
 
 [[changes_9.6.0]]
 == Upgrading from 9.5.0 and earlier
