@@ -16,6 +16,7 @@
 
 package org.gradle
 
+import org.gradle.api.internal.StartParameterInternal
 import org.gradle.api.logging.LogLevel
 import org.gradle.api.logging.configuration.ConsoleOutput
 import org.gradle.internal.DefaultTaskExecutionRequest
@@ -53,6 +54,22 @@ class StartParameterTest extends Specification {
     void "copying a StartParameter with newBuild emits a deprecation warning"() {
         expect:
         newStartParameter().newBuild() != null
+    }
+
+    // StartParameter is part of the public API and declares Serializable, so verify that contract on the
+    // public type. StartParameterInternal (used by the tests below) is not Java-serializable by design.
+    void "public StartParameter is serializable"() {
+        given:
+        StartParameter parameter = DeprecationLogger.whileDisabled({ new StartParameter() } as Factory)
+        parameter.taskNames = ['a', 'b']
+        parameter.excludedTaskNames = ['c']
+        parameter.projectProperties = [p: 'v']
+        parameter.systemPropertiesArgs = [s: 'v']
+        parameter.initScripts = [new File('init.gradle')]
+        parameter.currentDir = new File('some-dir')
+
+        expect:
+        assertThat(parameter, isSerializable())
     }
 
     void "new instance has correct state"() {
@@ -138,8 +155,6 @@ class StartParameterTest extends Specification {
         !parameter.buildCacheEnabled
         !parameter.writeDependencyLocks
         parameter.lockedDependenciesToUpdate.isEmpty()
-
-        assertThat(parameter, isSerializable())
     }
 
     void "uses gradle user home system property"() {
@@ -161,7 +176,6 @@ class StartParameterTest extends Specification {
 
         then:
         parameter.currentDir == dir.canonicalFile
-        assertThat(parameter, isSerializable())
     }
 
     void "can configure project dir"() {
@@ -173,7 +187,6 @@ class StartParameterTest extends Specification {
 
         then:
         parameter.currentDir == file.canonicalFile
-        assertThat(parameter, isSerializable())
     }
 
     void "can configure null project dir"() {
@@ -185,7 +198,6 @@ class StartParameterTest extends Specification {
 
         then:
         parameter.currentDir == new File(System.getProperty("user.dir")).getCanonicalFile()
-        assertThat(parameter, isSerializable())
     }
 
     void "can configure null user home dir"() {
@@ -196,7 +208,6 @@ class StartParameterTest extends Specification {
 
         then:
         parameter.gradleUserHomeDir == StartParameter.DEFAULT_GRADLE_USER_HOME
-        assertThat(parameter, isSerializable())
     }
 
     void "considers system properties for null user home dir"() {
@@ -212,7 +223,6 @@ class StartParameterTest extends Specification {
 
         then:
         parameter.gradleUserHomeDir == gradleUserHome
-        assertThat(parameter, isSerializable())
     }
 
     void "creates parameter for new build"() {
@@ -239,8 +249,6 @@ class StartParameterTest extends Specification {
         parameter.writeDependencyLocks = true
         parameter.lockedDependenciesToUpdate = ['foo']
 
-        assertThat(parameter, isSerializable())
-
         when:
         StartParameter newParameter = newBuildOf(parameter)
 
@@ -265,7 +273,6 @@ class StartParameterTest extends Specification {
         assertRunsDefaultTasks(newParameter)
         newParameter.excludedTaskNames.empty
         newParameter.currentDir == new File(System.getProperty("user.dir")).getCanonicalFile()
-        assertThat(newParameter, isSerializable())
     }
 
     void "gets all init scripts"() {
@@ -334,18 +341,19 @@ class StartParameterTest extends Specification {
         assert parameter.taskRequests.size() == 1 && parameter.taskRequests[0] instanceof RunDefaultTasksExecutionRequest
     }
 
-    // The public constructor and the copy methods are deprecated; this test class exercises
-    // StartParameter itself, so it goes through those entry points with the deprecation nag suppressed.
-    private static StartParameter newStartParameter() {
-        DeprecationLogger.whileDisabled({ new StartParameter() } as Factory)
+    // These tests exercise StartParameterInternal, the type actually used at runtime, via its
+    // non-deprecated internal construction and copy methods. The deprecation warnings on the public
+    // constructor and copy methods are covered by the dedicated tests at the top of this class.
+    private static StartParameterInternal newStartParameter() {
+        new StartParameterInternal()
     }
 
-    private static StartParameter newInstanceOf(StartParameter parameter) {
-        DeprecationLogger.whileDisabled({ parameter.newInstance() } as Factory)
+    private static StartParameterInternal newInstanceOf(StartParameterInternal parameter) {
+        parameter.newInstanceInternal()
     }
 
-    private static StartParameter newBuildOf(StartParameter parameter) {
-        DeprecationLogger.whileDisabled({ parameter.newBuild() } as Factory)
+    private static StartParameterInternal newBuildOf(StartParameterInternal parameter) {
+        parameter.newBuildInternal()
     }
 
     // Previously StartParameter's toString got wildly out of sync with the state inside of it
