@@ -258,18 +258,10 @@ public class StartParameter implements LoggingConfiguration, ParallelismConfigur
      */
     @Deprecated
     public StartParameter() {
-        this((Void) null);
+        this(new BuildLayoutParameters());
         // Only direct construction reaches here; Gradle's own construction goes through the protected
         // constructors, so this nags third-party callers without nagging internal usage.
         StartParameterDeprecations.nagOnStartParameterConstructor();
-    }
-
-    /**
-     * Creates a {@code StartParameter} with default values, for internal use. The {@code Void} parameter
-     * exists only to distinguish this from the deprecated public no-arg constructor; pass {@code null}.
-     */
-    protected StartParameter(@SuppressWarnings("unused") Void marker) {
-        this(new BuildLayoutParameters());
     }
 
     /**
@@ -295,7 +287,11 @@ public class StartParameter implements LoggingConfiguration, ParallelismConfigur
     @Deprecated
     public StartParameter newInstance() {
         StartParameterDeprecations.nagOnStartParameterCopy("newInstance()");
-        return prepareNewInstance(new StartParameter((Void) null));
+        return prepareNewInstance(createStartParameter());
+    }
+
+    private static StartParameter createStartParameter() {
+        return new StartParameter(new BuildLayoutParameters());
     }
 
     protected StartParameter prepareNewInstance(StartParameter p) {
@@ -326,7 +322,7 @@ public class StartParameter implements LoggingConfiguration, ParallelismConfigur
     @Deprecated
     public StartParameter newBuild() {
         StartParameterDeprecations.nagOnStartParameterCopy("newBuild()");
-        return prepareNewBuild(new StartParameter((Void) null));
+        return prepareNewBuild(createStartParameter());
     }
 
     protected StartParameter prepareNewBuild(StartParameter p) {
