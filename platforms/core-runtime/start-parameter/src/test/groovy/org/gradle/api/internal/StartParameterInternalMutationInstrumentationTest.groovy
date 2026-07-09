@@ -209,7 +209,9 @@ class StartParameterInternalMutationInstrumentationTest extends Specification {
         "isVfsVerboseLogging()",
         "isWriteDependencyLocks()",
         "newBuild()",
+        "newBuildInternal()",
         "newInstance()",
+        "newInstanceInternal()",
         "toBuildLayoutConfiguration()",
         "toString()",
     ]
