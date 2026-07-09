@@ -101,7 +101,7 @@ public class ModelRuleExtractor {
     /**
      * Creates a new rule source instance to be applied to a model element.
      *
-     * @throws InvalidModelRuleDeclarationException On badly formed rule source class.
+     * @throws org.gradle.model.InvalidModelRuleDeclarationException On badly formed rule source class.
      */
     public <T> ExtractedRuleSource<T> extract(Class<T> source) throws org.gradle.model.InvalidModelRuleDeclarationException {
         try {

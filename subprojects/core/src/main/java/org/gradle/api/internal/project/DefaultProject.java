@@ -101,7 +101,6 @@ import org.gradle.internal.event.ListenerBroadcast;
 import org.gradle.internal.extensibility.ExtensibleDynamicObject;
 import org.gradle.internal.extensibility.NoConventionMapping;
 import org.gradle.internal.instantiation.InstantiatorFactory;
-import org.gradle.internal.instantiation.generator.AsmBackedClassGenerator;
 import org.gradle.internal.logging.LoggingManagerInternal;
 import org.gradle.internal.logging.StandardOutputCapture;
 import org.gradle.internal.metaobject.BeanDynamicObject;
@@ -1155,9 +1154,8 @@ public abstract class DefaultProject extends AbstractPluginAware implements Proj
      * @implNote This is an implementation of the {@link groovy.lang.GroovyObject}'s corresponding method.
      * The interface itself is mixed-in at runtime, but we want to keep this implementation
      * to dispatch through the extensible dynamic object.
-     * @see AsmBackedClassGenerator.ClassBuilderImpl#addDynamicMethods
+     * See {@code AsmBackedClassGenerator.ClassBuilderImpl.addDynamicMethods} for the wiring.
      */
-    @SuppressWarnings("JavadocReference")
     @Nullable
     public Object getProperty(String propertyName) {
         return withCallerContext(ExtensibleDynamicObject.CallerContext.Instances.GET_PROPERTY,
@@ -1168,9 +1166,8 @@ public abstract class DefaultProject extends AbstractPluginAware implements Proj
      * @implNote This is an implementation of the {@link groovy.lang.GroovyObject}'s corresponding method.
      * The interface itself is mixed-in at runtime, but we want to keep this implementation
      * to dispatch through the extensible dynamic object.
-     * @see AsmBackedClassGenerator.ClassBuilderImpl#addDynamicMethods
+     * See {@code AsmBackedClassGenerator.ClassBuilderImpl.addDynamicMethods} for the wiring.
      */
-    @SuppressWarnings("JavadocReference")
     @Nullable
     public Object invokeMethod(String name, Object args) {
         if (args instanceof Object[]) {
