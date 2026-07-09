@@ -191,17 +191,17 @@ _Default value_: `layout.buildDirectory.dir("resources/$name")`, e.g. _build/res
 The directory to generate the resources of this source set into.
 
 `compileClasspath` — link:{javadocPath}/org/gradle/api/file/FileCollection.html[FileCollection]::
-_Default value_: `${name}CompileClasspath` configuration
+_Default value_: `$\{name}CompileClasspath` configuration
 +
 The classpath to use when compiling the source files of this source set.
 
 `annotationProcessorPath` — link:{javadocPath}/org/gradle/api/file/FileCollection.html[FileCollection]::
-_Default value_: `${name}AnnotationProcessor` configuration
+_Default value_: `$\{name}AnnotationProcessor` configuration
 +
 The processor path to use when compiling the source files of this source set.
 
 `runtimeClasspath` — link:{javadocPath}/org/gradle/api/file/FileCollection.html[FileCollection]::
-_Default value_: `$output`, `${name}RuntimeClasspath` configuration
+_Default value_: `$output`, `$\{name}RuntimeClasspath` configuration
 +
 The classpath to use when executing the classes of this source set.
 
