@@ -81,6 +81,7 @@ import org.gradle.internal.event.AnonymousListenerBroadcast
 import org.gradle.internal.event.ListenerManager
 import org.gradle.internal.operations.TestBuildOperationRunner
 import org.gradle.test.fixtures.ExpectDeprecation
+import org.gradle.test.fixtures.work.TestWorkerLeaseService
 import org.gradle.testfixtures.ProjectBuilder
 import org.gradle.util.AttributeTestUtil
 import org.gradle.util.Path
@@ -1915,7 +1916,8 @@ This method is only meant to be called on configurations which allow the (non-de
             TestUtil.problemsService(),
             new AttributeDesugaring(attributesFactory),
             new ResolveExceptionMapper(domainObjectContext, new DocumentationRegistry()),
-            TestUtil.providerFactory()
+            TestUtil.providerFactory(),
+            new TestWorkerLeaseService()
         )
 
         new DefaultConfigurationFactory(

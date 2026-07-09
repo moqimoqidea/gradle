@@ -38,6 +38,7 @@ import org.gradle.internal.event.AnonymousListenerBroadcast
 import org.gradle.internal.event.ListenerManager
 import org.gradle.internal.model.CalculatedValueContainerFactory
 import org.gradle.internal.operations.BuildOperationRunner
+import org.gradle.test.fixtures.work.TestWorkerLeaseService
 import org.gradle.util.AttributeTestUtil
 import org.gradle.util.Path
 import org.gradle.util.TestUtil
@@ -79,7 +80,8 @@ class DefaultConfigurationContainerSpec extends Specification {
         TestUtil.problemsService(),
         new AttributeDesugaring(AttributeTestUtil.attributesFactory()),
         new ResolveExceptionMapper(domainObjectContext, new DocumentationRegistry()),
-        TestUtil.providerFactory()
+        TestUtil.providerFactory(),
+        new TestWorkerLeaseService()
     )
 
     private DefaultConfigurationFactory configurationFactory = new DefaultConfigurationFactory(
