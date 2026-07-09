@@ -588,7 +588,7 @@ class HttpServer extends ServerWithExpectations implements HttpServerFixture {
         }
         response.setContentType(contentType ?: mimeTypeOf(file))
 
-        if (sendSha1Header || etags != null || contentLength != null) {
+        if (sendSha1Header || (etags != null && etags != EtagStrategy.NONE) || contentLength != null) {
             def content = file.bytes
             if (sendSha1Header) {
                 response.addHeader("X-Checksum-Sha1", Hashing.sha1().hashBytes(content).toZeroPaddedString(Hashing.sha1().hexDigits))
