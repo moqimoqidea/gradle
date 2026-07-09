@@ -797,7 +797,7 @@ When you use the `ReplaceTokens` class with `filter()`, you create a template en
 [[using_copyspec_expand]]
 === Using `CopySpec.expand()`
 
-The `expand()` method treats the source files as https://docs.groovy-lang.org/latest/html/api/groovy/text/SimpleTemplateEngine.html[Groovy templates], which evaluates and expands expressions of the form `${expression}.`
+The `expand()` method treats the source files as https://docs.groovy-lang.org/latest/html/api/groovy/text/SimpleTemplateEngine.html[Groovy templates], which evaluates and expands expressions of the form `$\{expression}.`
 
 You can pass in property names and values that are then expanded in the source files. `expand()` allows for more than basic token substitution as the embedded expressions are full-blown Groovy expressions.
 
