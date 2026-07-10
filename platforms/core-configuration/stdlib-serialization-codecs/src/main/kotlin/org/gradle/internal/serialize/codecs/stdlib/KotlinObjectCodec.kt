@@ -27,6 +27,8 @@ import java.lang.reflect.Modifier
 
 /**
  * Preserves the identity of Kotlin `object` singletons across the configuration cache.
+ *
+ * Only the object's identity is restored, not any mutable state it holds.
  */
 object KotlinObjectCodec : EncodingProducer, Decoding {
 

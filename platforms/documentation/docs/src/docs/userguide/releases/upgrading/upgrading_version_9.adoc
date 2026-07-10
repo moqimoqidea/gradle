@@ -58,6 +58,15 @@ org.gradle.configuration-cache.unsafe.skip-task-logging-listeners-serialization=
 
 This property is a temporary opt-out and will be removed in a future Gradle release.
 
+[[kotlin_object_singletons_in_configuration_cache]]
+==== Kotlin `object` singletons keep their identity in the Configuration Cache
+
+A Kotlin `object` (including `companion object` declarations) stored in the Configuration Cache is now restored as the same singleton instance.
+As a consequence, only the singleton's identity is restored, not any mutable state it may hold.
+
+Previously, each `object` was serialized as a regular bean and rebuilt as a _new_ instance on a cache hit, so `deserialized === TheObject` was `false`.
+if you relied on mutable state surviving a cache hit, move it into a task property or another bean type that is serialized by value.
+
 
 [[changes_9.7.0]]
 == Upgrading from 9.6.0 and earlier
