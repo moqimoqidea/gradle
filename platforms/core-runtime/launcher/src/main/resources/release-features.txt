@@ -1,0 +1,3 @@
+ - Broader Configuration Cache compatibility
+ - Isolated Projects graduates to incubating
+ - More source locations in problem reports
