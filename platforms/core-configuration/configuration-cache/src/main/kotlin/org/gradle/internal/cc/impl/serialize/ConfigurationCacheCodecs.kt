@@ -142,6 +142,7 @@ import org.gradle.internal.serialize.codecs.dm.transform.TransformStepSpecCodec
 import org.gradle.internal.serialize.codecs.dm.transform.TransformedArtifactCodec
 import org.gradle.internal.serialize.codecs.dm.transform.TransformedExternalArtifactSetCodec
 import org.gradle.internal.serialize.codecs.dm.transform.TransformedProjectArtifactSetCodec
+import org.gradle.internal.serialize.codecs.stdlib.KotlinObjectCodec
 import org.gradle.internal.serialize.codecs.stdlib.ProxyCodec
 import org.gradle.internal.serialize.graph.Codec
 import org.gradle.internal.serialize.graph.codecs.BeanCodec
@@ -347,6 +348,7 @@ class DefaultConfigurationCacheCodecs(
 
     private
     fun Bindings.completeWithStatefulCodecs() = append {
+        bind(KotlinObjectCodec)
         bind(ExternalizableCodec)
         bind(JavaObjectSerializationCodec(javaSerializationEncodingLookup, objectOpener))
         bind(ValueObjectCodec)
