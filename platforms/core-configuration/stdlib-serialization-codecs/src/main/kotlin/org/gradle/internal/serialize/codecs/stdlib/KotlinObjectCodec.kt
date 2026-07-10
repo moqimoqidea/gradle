@@ -30,43 +30,56 @@ import java.lang.reflect.Modifier
  */
 object KotlinObjectCodec : EncodingProducer, Decoding {
 
-    private
-    const val INSTANCE_FIELD_NAME = "INSTANCE"
-
     override fun encodingForType(type: Class<*>): Encoding? =
         KotlinObjectEncoding.takeIf { type.singletonInstanceField() != null }
 
     override suspend fun ReadContext.decode(): Any? {
         val objectClass = readClass()
-        val instanceField = objectClass.singletonInstanceField()
-            ?: error("Cannot find the singleton instance field of Kotlin object ${objectClass.name}.")
-        return instanceField.apply { isAccessible = true }.get(null)
+        return objectClass.singletonInstance()
     }
-
-    private
-    fun Class<*>.singletonInstanceField(): Field? {
-        if (!isAnnotationPresent(Metadata::class.java)) {
-            return null
-        }
-        return instanceFieldNamed(INSTANCE_FIELD_NAME, declaredIn = this)
-            ?: enclosingClass?.let { instanceFieldNamed(simpleName, declaredIn = it) }
-    }
-
-    private
-    fun Class<*>.instanceFieldNamed(name: String, declaredIn: Class<*>): Field? =
-        declaredIn.declaredFields.firstOrNull {
-            it.name == name &&
-                it.type == this &&
-                Modifier.isStatic(it.modifiers) &&
-                Modifier.isFinal(it.modifiers) &&
-                Modifier.isPublic(it.modifiers)
-        }
 }
 
 
 private
 object KotlinObjectEncoding : Encoding {
     override suspend fun WriteContext.encode(value: Any) {
-        writeClass(value.javaClass)
+        val objectClass = value.javaClass
+        require(objectClass.singletonInstance() === value) {
+            "Cannot serialize an instance of Kotlin object ${objectClass.name} that is not its singleton instance."
+        }
+        writeClass(objectClass)
     }
 }
+
+
+private
+const val INSTANCE_FIELD_NAME = "INSTANCE"
+
+
+private
+fun Class<*>.singletonInstance(): Any =
+    (singletonInstanceField() ?: error("Cannot find the singleton instance field of Kotlin object $name."))
+        .apply { isAccessible = true }
+        .get(null)
+
+
+private
+fun Class<*>.singletonInstanceField(): Field? {
+    if (!isAnnotationPresent(Metadata::class.java)) {
+        // not a Kotlin class
+        return null
+    }
+    return instanceFieldNamed(INSTANCE_FIELD_NAME, declaredIn = this)
+        ?: enclosingClass?.let { instanceFieldNamed(simpleName, declaredIn = it) }
+}
+
+
+private
+fun Class<*>.instanceFieldNamed(name: String, declaredIn: Class<*>): Field? =
+    declaredIn.declaredFields.firstOrNull {
+        it.name == name &&
+            it.type == this &&
+            Modifier.isStatic(it.modifiers) &&
+            Modifier.isFinal(it.modifiers) &&
+            Modifier.isPublic(it.modifiers)
+    }
