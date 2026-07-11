@@ -101,7 +101,6 @@ import org.gradle.internal.event.ListenerBroadcast;
 import org.gradle.internal.extensibility.ExtensibleDynamicObject;
 import org.gradle.internal.extensibility.NoConventionMapping;
 import org.gradle.internal.instantiation.InstantiatorFactory;
-import org.gradle.internal.instantiation.generator.AsmBackedClassGenerator;
 import org.gradle.internal.logging.LoggingManagerInternal;
 import org.gradle.internal.logging.StandardOutputCapture;
 import org.gradle.internal.metaobject.BeanDynamicObject;
@@ -116,8 +115,6 @@ import org.gradle.internal.service.ServiceRegistry;
 import org.gradle.internal.service.scopes.ServiceRegistryFactory;
 import org.gradle.internal.typeconversion.TypeConverter;
 import org.gradle.listener.ClosureBackedMethodInvocationDispatch;
-import org.gradle.model.Model;
-import org.gradle.model.RuleSource;
 import org.gradle.model.dsl.internal.NonTransformedModelDslBacking;
 import org.gradle.model.dsl.internal.TransformedModelDslBacking;
 import org.gradle.model.internal.core.DefaultNodeInitializerRegistry;
@@ -159,7 +156,7 @@ import static java.util.Collections.singletonMap;
 import static org.gradle.util.internal.ConfigureUtil.configureUsing;
 import static org.gradle.util.internal.GUtil.addMaps;
 
-@SuppressWarnings("this-escape")
+@SuppressWarnings({"this-escape"})
 @NoConventionMapping
 public abstract class DefaultProject extends AbstractPluginAware implements ProjectInternal, DynamicObjectAware {
     private static final ModelType<ServiceRegistry> SERVICE_REGISTRY_MODEL_TYPE = ModelType.of(ServiceRegistry.class);
@@ -285,70 +282,70 @@ public abstract class DefaultProject extends AbstractPluginAware implements Proj
         ruleBasedPluginListenerBroadcast.add((RuleBasedPluginListener) project -> populateModelRegistry(services.get(ModelRegistry.class)));
     }
 
-    @SuppressWarnings("unused")
-    static class BasicServicesRules extends RuleSource {
+    @SuppressWarnings({"deprecation", "unused"})
+    static class BasicServicesRules extends org.gradle.model.RuleSource {
         @Hidden
-        @Model
+        @org.gradle.model.Model
         ProjectLayout projectLayoutService(ServiceRegistry serviceRegistry) {
             return serviceRegistry.get(ProjectLayout.class);
         }
 
         @Hidden
-        @Model
+        @org.gradle.model.Model
         ObjectFactory objectFactory(ServiceRegistry serviceRegistry) {
             return serviceRegistry.get(ObjectFactory.class);
         }
 
         @Hidden
-        @Model
+        @org.gradle.model.Model
         NamedEntityInstantiator<Task> taskFactory(ServiceRegistry serviceRegistry) {
             return serviceRegistry.get(TaskInstantiator.class);
         }
 
         @Hidden
-        @Model
+        @org.gradle.model.Model
         CollectionCallbackActionDecorator collectionCallbackActionDecorator(ServiceRegistry serviceRegistry) {
             return serviceRegistry.get(CollectionCallbackActionDecorator.class);
         }
 
         @Hidden
-        @Model
+        @org.gradle.model.Model
         Instantiator instantiator(ServiceRegistry serviceRegistry) {
             return serviceRegistry.get(Instantiator.class);
         }
 
         @Hidden
-        @Model
+        @org.gradle.model.Model
         ModelSchemaStore schemaStore(ServiceRegistry serviceRegistry) {
             return serviceRegistry.get(ModelSchemaStore.class);
         }
 
         @Hidden
-        @Model
+        @org.gradle.model.Model
         ManagedProxyFactory proxyFactory(ServiceRegistry serviceRegistry) {
             return serviceRegistry.get(ManagedProxyFactory.class);
         }
 
         @Hidden
-        @Model
+        @org.gradle.model.Model
         StructBindingsStore structBindingsStore(ServiceRegistry serviceRegistry) {
             return serviceRegistry.get(StructBindingsStore.class);
         }
 
         @Hidden
-        @Model
+        @org.gradle.model.Model
         NodeInitializerRegistry nodeInitializerRegistry(ModelSchemaStore schemaStore, StructBindingsStore structBindingsStore) {
             return new DefaultNodeInitializerRegistry(schemaStore, structBindingsStore);
         }
 
         @Hidden
-        @Model
+        @org.gradle.model.Model
         TypeConverter typeConverter(ServiceRegistry serviceRegistry) {
             return serviceRegistry.get(TypeConverter.class);
         }
 
         @Hidden
-        @Model
+        @org.gradle.model.Model
         FileOperations fileOperations(ServiceRegistry serviceRegistry) {
             return serviceRegistry.get(FileOperations.class);
         }
@@ -1157,9 +1154,8 @@ public abstract class DefaultProject extends AbstractPluginAware implements Proj
      * @implNote This is an implementation of the {@link groovy.lang.GroovyObject}'s corresponding method.
      * The interface itself is mixed-in at runtime, but we want to keep this implementation
      * to dispatch through the extensible dynamic object.
-     * @see AsmBackedClassGenerator.ClassBuilderImpl#addDynamicMethods
+     * See {@code AsmBackedClassGenerator.ClassBuilderImpl.addDynamicMethods} for the wiring.
      */
-    @SuppressWarnings("JavadocReference")
     @Nullable
     public Object getProperty(String propertyName) {
         return withCallerContext(ExtensibleDynamicObject.CallerContext.Instances.GET_PROPERTY,
@@ -1170,9 +1166,8 @@ public abstract class DefaultProject extends AbstractPluginAware implements Proj
      * @implNote This is an implementation of the {@link groovy.lang.GroovyObject}'s corresponding method.
      * The interface itself is mixed-in at runtime, but we want to keep this implementation
      * to dispatch through the extensible dynamic object.
-     * @see AsmBackedClassGenerator.ClassBuilderImpl#addDynamicMethods
+     * See {@code AsmBackedClassGenerator.ClassBuilderImpl.addDynamicMethods} for the wiring.
      */
-    @SuppressWarnings("JavadocReference")
     @Nullable
     public Object invokeMethod(String name, Object args) {
         if (args instanceof Object[]) {

@@ -484,8 +484,14 @@ include::sample[dir="snippets/reference/platforms/jvm/manifest/kotlin",files="bu
 include::sample[dir="snippets/reference/platforms/jvm/manifest/groovy",files="build.gradle[tags=add-to-manifest]"]
 ====
 
-Manifest attribute values are evaluated lazily when the manifest is written.
-In the example above, `archiveVersion` and `buildCommit` are resolved only when the `jar` task generates the manifest.
+Manifest attribute values can be provided lazily using the Provider API.
+In the example above, `archiveVersion` and `buildCommit` are resolved only when Gradle writes the manifest for the `jar` task.
+The provider value is resolved when Gradle writes the manifest:
+
+====
+include::sample[dir="snippets/reference/platforms/jvm/manifest/kotlin",files="build.gradle.kts[tags=provider-manifest]"]
+include::sample[dir="snippets/reference/platforms/jvm/manifest/groovy",files="build.gradle[tags=provider-manifest]"]
+====
 
 See link:{javadocPath}/org/gradle/api/java/archives/Manifest.html[Manifest] for the configuration options it provides.
 
