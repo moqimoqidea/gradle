@@ -165,10 +165,11 @@ fun KtFile.collectKtFunctionsFor(qualifiedBaseName: String, method: CtMethod): L
         }
 
         // Preliminary extension function check
+        val allowJvmOverloads = ktFunction.hasJvmOverloads
         val extensionCandidate = couldBeExtensionFunction && ktFunction.receiverTypeReference != null &&
             method.firstParameterMatches(ktFunction.receiverTypeReference!!) &&
-            ktFunction.valueParameters.size == paramCountWithReceiver
-        if (!(extensionCandidate || ktFunction.valueParameters.size == paramCount)) {
+            ktFunction.acceptsValueParameterCount(paramCountWithReceiver, allowJvmOverloads)
+        if (!(extensionCandidate || ktFunction.acceptsValueParameterCount(paramCount, allowJvmOverloads))) {
             return@collectDescendantsOfType false
         }
         val isVarargs = Modifier.isVarArgs(method.modifiers)
@@ -206,6 +207,25 @@ val KtFunction.typeParameterBounds: Map<String, KtTypeReference?>
 private
 val KtFunction.jvmName: String?
     get() = annotationEntries.jvmName() ?: fqName?.shortName()?.asString()
+
+
+private
+val KtFunction.hasJvmOverloads: Boolean
+    get() = annotationEntries.any { it.shortName?.asString() == "JvmOverloads" }
+
+
+/**
+ * Whether the function can back a JVM method with the given number of value parameters. With
+ * `@JvmOverloads` the compiler also emits overloads that drop a trailing run of default-valued
+ * parameters, so any prefix ending before such a run is accepted.
+ */
+private
+fun KtFunction.acceptsValueParameterCount(count: Int, allowJvmOverloads: Boolean): Boolean =
+    when {
+        count == valueParameters.size -> true
+        !allowJvmOverloads || count !in 0 until valueParameters.size -> false
+        else -> valueParameters.drop(count).all { it.hasDefaultValue() }
+    }
 
 
 private

@@ -370,6 +370,37 @@ class SinceAndIncubatingRulesKotlinTest : AbstractBinaryCompatibilityTest() {
     }
 
     @Test
+    fun `new top-level kotlin function with @JvmOverloads`() {
+        checkBinaryCompatibleKotlin(
+            v1 = """
+                val existing = "file-facade-class"
+            """,
+            v2 = """
+                val existing = "file-facade-class"
+
+                /** @since 2.0 */
+                @Incubating
+                @JvmOverloads
+                fun foo(a: Int, b: Int = 1, c: String = "") {}
+
+                /** @since 2.0 */
+                @Incubating
+                @JvmOverloads
+                fun String.bar(a: Int, b: Int = 1) {}
+            """
+        ) {
+            assertHasNoWarning()
+            assertHasInformation(
+                newApi("Method", "SourceKt.foo(int)"),
+                newApi("Method", "SourceKt.foo(int,int)"),
+                newApi("Method", "SourceKt.foo(int,int,java.lang.String)"),
+                newApi("Method", "SourceKt.bar(java.lang.String,int)"),
+                newApi("Method", "SourceKt.bar(java.lang.String,int,int)"),
+            )
+        }
+    }
+
+    @Test
     fun `new constructor with mapped parameter types`() {
         val baseline = """
             /** @since 1.0 */
