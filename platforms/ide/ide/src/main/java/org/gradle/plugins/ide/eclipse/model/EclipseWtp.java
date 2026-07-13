@@ -65,7 +65,9 @@ public abstract class EclipseWtp {
      * Injects and returns an instance of {@link ObjectFactory}.
      *
      * @since 4.9
+     * @deprecated Will be removed in Gradle 10.
      */
+    @Deprecated
     @Inject
     protected abstract ObjectFactory getObjectFactory();
 

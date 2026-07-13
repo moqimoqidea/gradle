@@ -1013,7 +1013,8 @@ We are deprecating these file generation tasks:
 * associated `clean*` tasks
 
 In addition to the tasks, certain model properties that only affect the generated files are also deprecated.
-These include `idea.module.iml { ... }`, `idea.project.ipr { ... }`, `idea.workspace { ... }`, `eclipse.wtp.facet { ... }`, and the `file { ... }` merging hooks on `EclipseJdt` and `eclipse.wtp.component`.
+These include `idea.module.iml { ... }`, `idea.project.ipr { ... }`, `idea.workspace { ... }`, `idea.targetVersion`, `idea.pathVariables`, `idea.module.pathVariables`, `idea.project.projectLibraries`, `eclipse.wtp.facet { ... }`, the `file { ... }` merging hooks on `EclipseJdt` and `eclipse.wtp.component`, and the `withXml { ... }` hook on all `file { ... }` blocks.
+The `beforeMerged { ... }` and `whenMerged { ... }` hooks on the eclipse project and classpath models are _not_ deprecated, as they also affect the model consumed by the IDE.
 
 The rest of `eclipse.wtp { ... }` is _not_ deprecated: the `eclipse.wtp.component { ... }` configuration feeds the WTP classpath attributes surfaced via the Tooling API, which Eclipse Buildship consumes.
 

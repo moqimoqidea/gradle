@@ -57,6 +57,9 @@ class EclipseProjectIntegrationTest extends AbstractEclipseIntegrationSpec {
         """
         when:
         expectTaskDeprecations("eclipse", "eclipseClasspath", "eclipseJdt", "eclipseProject")
+        expectTaskTypeDeprecations(
+                ("org.gradle.plugins.ide.api.XmlFileContentMerger.withXml"): 1,
+        )
         run("eclipse")
         then:
 

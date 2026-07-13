@@ -466,6 +466,9 @@ class EclipseIntegrationTest extends AbstractEclipseIntegrationTest {
     @Test
     void dslAllowsShortForms() {
         expectTaskDeprecations("eclipse", "eclipseClasspath", "eclipseJdt", "eclipseProject")
+        expectTaskTypeDeprecations(
+                ("org.gradle.plugins.ide.api.XmlFileContentMerger.withXml"): 3,
+        )
         runEclipseTask '''
             apply plugin: 'java'
             apply plugin: 'eclipse'

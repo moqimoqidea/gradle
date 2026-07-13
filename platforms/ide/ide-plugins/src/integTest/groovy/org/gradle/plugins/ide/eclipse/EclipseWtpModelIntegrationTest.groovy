@@ -158,6 +158,7 @@ class EclipseWtpModelIntegrationTest extends AbstractEclipseIntegrationTest {
         expectTaskDeprecations("eclipse", "eclipseClasspath", "eclipseJdt", "eclipseProject", "eclipseWtp", "eclipseWtpComponent", "eclipseWtpFacet")
         expectTaskTypeDeprecations(
                 ("org.gradle.plugins.ide.eclipse.model.EclipseWtpComponent.file"): 1,
+                ("org.gradle.plugins.ide.api.XmlFileContentMerger.withXml"): 1,
         )
         runEclipseTask """
             apply plugin: 'java'
@@ -217,6 +218,7 @@ class EclipseWtpModelIntegrationTest extends AbstractEclipseIntegrationTest {
         expectTaskDeprecations("eclipse", "eclipseClasspath", "eclipseJdt", "eclipseProject", "eclipseWtp", "eclipseWtpComponent", "eclipseWtpFacet")
         expectTaskTypeDeprecations(
                 ("org.gradle.plugins.ide.eclipse.model.EclipseWtp.facet"): 1,
+                ("org.gradle.plugins.ide.api.XmlFileContentMerger.withXml"): 1,
         )
         runEclipseTask """
             import org.gradle.plugins.ide.eclipse.model.Facet

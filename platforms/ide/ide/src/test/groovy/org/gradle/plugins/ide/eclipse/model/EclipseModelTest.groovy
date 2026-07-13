@@ -82,6 +82,7 @@ class EclipseModelTest extends Specification {
         model.wtp.component.pathVariables == [one: new File('.')]
     }
 
+    @ExpectDeprecation("Using types related to file generation tasks of IDE plugins (org.gradle.plugins.ide.api.XmlFileContentMerger.withXml). This behavior has been deprecated.")
     def "can configure project with Actions"() {
         given:
         def xmlTransformer = Mock(XmlTransformer)
@@ -108,6 +109,7 @@ class EclipseModelTest extends Specification {
         1 * xmlTransformer.addAction(xmlAction)
     }
 
+    @ExpectDeprecation("Using types related to file generation tasks of IDE plugins (org.gradle.plugins.ide.api.XmlFileContentMerger.withXml). This behavior has been deprecated.")
     def "can configure classpath with Actions"() {
         given:
         def xmlTransformer = Mock(XmlTransformer)
