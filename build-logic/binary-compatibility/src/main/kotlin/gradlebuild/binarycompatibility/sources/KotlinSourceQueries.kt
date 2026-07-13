@@ -38,6 +38,7 @@ import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtProperty
+import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
@@ -149,11 +150,11 @@ fun KtFile.collectKtFunctionsFor(qualifiedBaseName: String, method: CtMethod): L
     val paramCount = method.parameterTypes.size
     val couldBeExtensionFunction = paramCount > 0
     val paramCountWithReceiver = paramCount - 1
-    val functionFqName = "$qualifiedBaseName.${method.name}"
 
     return collectDescendantsOfType { ktFunction ->
         // Name check
-        if (ktFunction.fqName?.asString() != functionFqName) {
+        val fqName = ktFunction.fqName ?: return@collectDescendantsOfType false
+        if (fqName.parent().asString() != qualifiedBaseName || ktFunction.jvmName != method.name) {
             return@collectDescendantsOfType false
         }
 
@@ -178,6 +179,17 @@ fun KtFile.collectKtFunctionsFor(qualifiedBaseName: String, method: CtMethod): L
             }
     }
 }
+
+
+private
+val KtFunction.jvmName: String?
+    get() = annotationEntries
+        .firstOrNull { it.shortName?.asString() == "JvmName" }
+        ?.valueArguments?.firstOrNull()
+        ?.getArgumentExpression()
+        ?.let { it as? KtStringTemplateExpression }
+        ?.entries?.singleOrNull()?.text
+        ?: fqName?.shortName()?.asString()
 
 
 private

@@ -295,6 +295,46 @@ class SinceAndIncubatingRulesKotlinTest : AbstractBinaryCompatibilityTest() {
     }
 
     @Test
+    fun `new top-level kotlin member with @JvmName`() {
+        checkNotBinaryCompatibleKotlin(
+            v1 = """
+                val existing = "file-facade-class"
+            """,
+            v2 = """
+                val existing = "file-facade-class"
+
+                @JvmName("fooRenamed")
+                fun String.foo() {}
+            """
+        ) {
+            assertHasNoInformation()
+            assertHasNoWarning()
+            assertHasErrors(
+                added("Method", "SourceKt.fooRenamed(java.lang.String)"),
+            )
+        }
+
+        checkBinaryCompatibleKotlin(
+            v1 = """
+                val existing = "file-facade-class"
+            """,
+            v2 = """
+                val existing = "file-facade-class"
+
+                /** @since 2.0 */
+                @Incubating
+                @JvmName("fooRenamed")
+                fun String.foo() {}
+            """
+        ) {
+            assertHasNoWarning()
+            assertHasInformation(
+                newApi("Method", "SourceKt.fooRenamed(java.lang.String)"),
+            )
+        }
+    }
+
+    @Test
     fun `new top-level kotlin types`() {
 
         // Singleton INSTANCE fields of `object`s are public
