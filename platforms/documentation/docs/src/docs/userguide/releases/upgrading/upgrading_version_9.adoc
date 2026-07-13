@@ -73,6 +73,7 @@ If you relied on mutable state surviving a cache hit, move it into a task proper
 
 === Potential breaking changes
 
+[[project_cache_dir_no_longer_watched]]
 ==== The project cache directory is no longer watched
 
 Gradle no longer watches the _project cache directory_ (the `.gradle` directory in the root project, or a custom location set with `--project-cache-dir`).
@@ -87,6 +88,7 @@ Source-dependency check-outs, which live under the project cache directory but w
 
 See <<file_system_watching.adoc#sec:excluding_files_and_directories,Excluding files and directories>> for details.
 
+[[kotlin_2_4_0]]
 ==== Upgrade to Kotlin 2.4.0
 
 The embedded Kotlin has been upgraded from 2.3.21 to link:https://github.com/JetBrains/kotlin/releases/tag/v2.4.0[Kotlin 2.4.0].
