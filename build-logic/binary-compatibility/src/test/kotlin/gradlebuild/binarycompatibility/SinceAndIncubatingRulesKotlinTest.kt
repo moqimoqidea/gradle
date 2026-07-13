@@ -335,6 +335,68 @@ class SinceAndIncubatingRulesKotlinTest : AbstractBinaryCompatibilityTest() {
     }
 
     @Test
+    fun `new top-level kotlin member with generic parameters`() {
+        checkNotBinaryCompatibleKotlin(
+            v1 = """
+                val existing = "file-facade-class"
+            """,
+            v2 = """
+                val existing = "file-facade-class"
+
+                fun <T> foo(t: T) {}
+
+                fun <T : Any> qux(t: T) {}
+
+                fun <T : Number> bar(t: T) {}
+
+                fun <T> String.baz(t: T) {}
+            """
+        ) {
+            assertHasNoInformation()
+            assertHasNoWarning()
+            assertHasErrors(
+                added("Method", "SourceKt.bar(java.lang.Number)"),
+                added("Method", "SourceKt.baz(java.lang.String,java.lang.Object)"),
+                added("Method", "SourceKt.foo(java.lang.Object)"),
+                added("Method", "SourceKt.qux(java.lang.Object)"),
+            )
+        }
+
+        checkBinaryCompatibleKotlin(
+            v1 = """
+                val existing = "file-facade-class"
+            """,
+            v2 = """
+                val existing = "file-facade-class"
+
+                /** @since 2.0 */
+                @Incubating
+                fun <T> foo(t: T) {}
+
+                /** @since 2.0 */
+                @Incubating
+                fun <T : Any> qux(t: T) {}
+
+                /** @since 2.0 */
+                @Incubating
+                fun <T : Number> bar(t: T) {}
+
+                /** @since 2.0 */
+                @Incubating
+                fun <T> String.baz(t: T) {}
+            """
+        ) {
+            assertHasNoWarning()
+            assertHasInformation(
+                newApi("Method", "SourceKt.bar(java.lang.Number)"),
+                newApi("Method", "SourceKt.baz(java.lang.String,java.lang.Object)"),
+                newApi("Method", "SourceKt.foo(java.lang.Object)"),
+                newApi("Method", "SourceKt.qux(java.lang.Object)"),
+            )
+        }
+    }
+
+    @Test
     fun `new top-level kotlin types`() {
 
         // Singleton INSTANCE fields of `object`s are public

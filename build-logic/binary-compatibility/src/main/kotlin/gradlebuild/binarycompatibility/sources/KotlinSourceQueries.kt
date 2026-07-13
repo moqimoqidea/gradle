@@ -39,6 +39,7 @@ import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
+import org.jetbrains.kotlin.psi.KtTypeParameterListOwner
 import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
@@ -166,6 +167,7 @@ fun KtFile.collectKtFunctionsFor(qualifiedBaseName: String, method: CtMethod): L
             return@collectDescendantsOfType false
         }
         val isVarargs = Modifier.isVarArgs(method.modifiers)
+        val typeParameterBounds = ktFunction.typeParameterBounds
 
         // Parameter type check
         method.parameterTypes
@@ -175,10 +177,24 @@ fun KtFile.collectKtFunctionsFor(qualifiedBaseName: String, method: CtMethod): L
             .withIndex()
             .all {
                 val ktParamType = ktFunction.valueParameters[it.index].typeReference!!
-                it.value.isLikelyEquivalentTo(ktParamType) || (isVarargs && it.value.componentType?.isLikelyEquivalentTo(ktParamType) == true)
+                it.value.isLikelyEquivalentTo(ktParamType, typeParameterBounds) ||
+                    (isVarargs && it.value.componentType?.isLikelyEquivalentTo(ktParamType, typeParameterBounds) == true)
             }
     }
 }
+
+
+/**
+ * Type parameters visible to this function (its own plus its containing class'), mapped to their upper
+ * bound (null when unbounded). Used to reconcile a source type parameter with its erased binary type.
+ */
+private
+val KtFunction.typeParameterBounds: Map<String, KtTypeReference?>
+    get() {
+        val ownTypeParameters = typeParameters
+        val classTypeParameters = (containingClassOrObject as? KtTypeParameterListOwner)?.typeParameters.orEmpty()
+        return (ownTypeParameters + classTypeParameters).associate { it.name!! to it.extendsBound }
+    }
 
 
 private
@@ -303,7 +319,7 @@ fun CtBehavior.firstParameterMatches(ktTypeReference: KtTypeReference): Boolean 
 
 
 private
-fun CtClass.isLikelyEquivalentTo(ktTypeReference: KtTypeReference): Boolean {
+fun CtClass.isLikelyEquivalentTo(ktTypeReference: KtTypeReference, typeParameterBounds: Map<String, KtTypeReference?> = emptyMap()): Boolean {
     val ktTypeAsText = ktTypeReference.text
     if (ktTypeAsText.contains(" -> ")) {
         // This is a function of some sort
@@ -313,6 +329,12 @@ fun CtClass.isLikelyEquivalentTo(ktTypeReference: KtTypeReference): Boolean {
     val ktTypeRawName = ktTypeAsText
         .trimEnd('?') // nullability is not part of JVM types
         .substringBefore('<') // generics are not part of parameter types in JVM method signatures
+
+    if (typeParameterBounds.containsKey(ktTypeRawName)) {
+        return typeParameterBounds[ktTypeRawName]
+            ?.let { isLikelyEquivalentTo(it) }
+            ?: (name == "java.lang.Object")
+    }
 
     val thisTypeAsKt = name.mapJavaTypeToKotlinType()
     return thisTypeAsKt.endsWith(ktTypeRawName)
