@@ -172,6 +172,7 @@ tasks.withType<KotlinCompile>().configureEach {
 Refer to Gradle’s link:compatibility.html#kotlin[compatibility matrix] for details on which Kotlin version is embedded in each Gradle release.
 
 NOTE: Plugins written using the Kotlin DSL and published with Gradle 7.x or 8.x remain compatible with Gradle 6.8 and newer.
+This example specifically requires building with Gradle 7.x or 8.x — Gradle 9.x embeds Kotlin 2.2, which no longer allows `languageVersion` or `apiVersion` below 1.8, so this configuration cannot be applied when building with Gradle 9.x itself.
 
 [[plugins_written_with_the_groovy_dsl_require_gradle_7_0]]
 === Plugins written with the Groovy DSL require Gradle >= 7.0
