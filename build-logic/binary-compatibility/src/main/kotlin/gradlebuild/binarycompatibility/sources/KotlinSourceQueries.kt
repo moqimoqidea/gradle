@@ -82,12 +82,15 @@ object KotlinSourceQueries {
     private
     fun KtFile.getSince(declaringClass: CtClass, constructor: CtConstructor, fallback: String?): SinceTagStatus {
         val classFqName = declaringClass.name
-        val ctorParamTypes = constructor.parameterTypes.map { it.name }
+        val ctorParamTypes = constructor.parameterTypes
         return collectDescendantsOfType<KtConstructor<*>>()
             .firstOrNull { ktCtor ->
                 val sameName = ktCtor.containingClassOrObject?.fqName?.asString() == classFqName
                 val sameParamCount = ktCtor.valueParameters.size == ctorParamTypes.size
-                val sameParamTypes = sameParamCount && ctorParamTypes.mapIndexed { idx, paramType -> paramType.endsWith(ktCtor.valueParameters[idx].typeReference!!.text) }.all { it }
+                val typeParameterBounds = (ktCtor.containingClassOrObject as? KtTypeParameterListOwner).typeParameterBounds
+                val sameParamTypes = sameParamCount && ctorParamTypes.withIndex().all { (idx, paramType) ->
+                    paramType.isLikelyEquivalentTo(ktCtor.valueParameters[idx].typeReference!!, typeParameterBounds)
+                }
                 sameName && sameParamCount && sameParamTypes
             }
             .getSinceStatus(fallback)
@@ -185,16 +188,17 @@ fun KtFile.collectKtFunctionsFor(qualifiedBaseName: String, method: CtMethod): L
 
 
 /**
- * Type parameters visible to this function (its own plus its containing class'), mapped to their upper
- * bound (null when unbounded). Used to reconcile a source type parameter with its erased binary type.
+ * Type parameters declared by this owner, mapped to their upper bound (null when unbounded).
+ * Used to reconcile a source type parameter with its erased binary type.
  */
 private
+val KtTypeParameterListOwner?.typeParameterBounds: Map<String, KtTypeReference?>
+    get() = this?.typeParameters.orEmpty().associate { it.name!! to it.extendsBound }
+
+private
 val KtFunction.typeParameterBounds: Map<String, KtTypeReference?>
-    get() {
-        val ownTypeParameters = typeParameters
-        val classTypeParameters = (containingClassOrObject as? KtTypeParameterListOwner)?.typeParameters.orEmpty()
-        return (ownTypeParameters + classTypeParameters).associate { it.name!! to it.extendsBound }
-    }
+    get() = (containingClassOrObject as? KtTypeParameterListOwner).typeParameterBounds +
+        typeParameters.associate { it.name!! to it.extendsBound }
 
 
 private

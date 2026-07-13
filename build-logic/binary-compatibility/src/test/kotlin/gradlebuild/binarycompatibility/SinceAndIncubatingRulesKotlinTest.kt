@@ -335,6 +335,41 @@ class SinceAndIncubatingRulesKotlinTest : AbstractBinaryCompatibilityTest() {
     }
 
     @Test
+    fun `new constructor with mapped parameter types`() {
+        val baseline = """
+            /** @since 1.0 */
+            class Bar<T>()
+        """
+
+        checkBinaryCompatibleKotlin(
+            v1 = baseline,
+            v2 = """
+                /** @since 1.0 */
+                class Bar<T>() {
+
+                    /** @since 2.0 */
+                    @Incubating
+                    constructor(x: Int) : this()
+
+                    /** @since 2.0 */
+                    @Incubating
+                    constructor(x: String?) : this()
+
+                    /** @since 2.0 */
+                    @Incubating
+                    constructor(x: List<String>) : this()
+
+                    /** @since 2.0 */
+                    @Incubating
+                    constructor(x: T) : this()
+                }
+            """
+        ) {
+            assertEmptyReport()
+        }
+    }
+
+    @Test
     fun `new top-level kotlin member with generic parameters`() {
         checkNotBinaryCompatibleKotlin(
             v1 = """
