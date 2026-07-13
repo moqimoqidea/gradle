@@ -31,7 +31,9 @@ import javassist.CtField
 import javassist.CtMember
 import javassist.CtMethod
 import javassist.Modifier
+import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
 import org.jetbrains.kotlin.lexer.KtTokens
+import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtConstructor
 import org.jetbrains.kotlin.psi.KtDeclaration
@@ -203,17 +205,38 @@ val KtFunction.typeParameterBounds: Map<String, KtTypeReference?>
 
 private
 val KtFunction.jvmName: String?
-    get() = annotationEntries
-        .firstOrNull { it.shortName?.asString() == "JvmName" }
+    get() = annotationEntries.jvmName() ?: fqName?.shortName()?.asString()
+
+
+private
+val KtProperty.getterJvmName: String?
+    get() = annotationEntries.jvmName(AnnotationUseSiteTarget.PROPERTY_GETTER)
+
+
+private
+val KtProperty.setterJvmName: String?
+    get() = annotationEntries.jvmName(AnnotationUseSiteTarget.PROPERTY_SETTER)
+
+
+/**
+ * Value of the `@JvmName` annotation with the given use-site target (none for a plain `@JvmName`),
+ * or null when absent.
+ */
+private
+fun List<KtAnnotationEntry>.jvmName(useSiteTarget: AnnotationUseSiteTarget? = null): String? =
+    firstOrNull { it.shortName?.asString() == "JvmName" && it.useSiteTarget?.getAnnotationUseSiteTarget() == useSiteTarget }
         ?.valueArguments?.firstOrNull()
         ?.getArgumentExpression()
         ?.let { it as? KtStringTemplateExpression }
         ?.entries?.singleOrNull()?.text
-        ?: fqName?.shortName()?.asString()
 
 
 private
 fun KtFile.collectKtPropertiesFor(qualifiedBaseName: String, method: CtMethod): List<KtProperty> {
+    val renamed = collectRenamedKtPropertiesFor(qualifiedBaseName, method)
+    if (renamed.isNotEmpty()) {
+        return renamed
+    }
 
     val hasGetGetterName = method.name.matches(propertyGetterNameRegex)
     val hasIsGetterName = method.name.matches(propertyIsGetterNameRegex)
@@ -260,6 +283,27 @@ fun KtFile.collectKtPropertiesFor(qualifiedBaseName: String, method: CtMethod): 
             couldBeProperty -> {
                 ktProperty.receiverTypeReference == null
             }
+            else -> false
+        }
+    }
+}
+
+
+private
+fun KtFile.collectRenamedKtPropertiesFor(qualifiedBaseName: String, method: CtMethod): List<KtProperty> {
+    val paramCount = method.parameterTypes.size
+    val returnsVoid = method.returnType.name == "void"
+
+    return collectDescendantsOfType { ktProperty ->
+        if (ktProperty.fqName?.parent()?.asString() != qualifiedBaseName) {
+            return@collectDescendantsOfType false
+        }
+        val receiverParamCount = if (ktProperty.receiverTypeReference != null) 1 else 0
+        val receiverMatches = ktProperty.receiverTypeReference
+            ?.let { method.firstParameterMatches(it) } ?: true
+        when (method.name) {
+            ktProperty.getterJvmName -> paramCount == receiverParamCount && !returnsVoid && receiverMatches
+            ktProperty.setterJvmName -> paramCount == receiverParamCount + 1 && returnsVoid && receiverMatches
             else -> false
         }
     }

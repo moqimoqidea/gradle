@@ -335,6 +335,41 @@ class SinceAndIncubatingRulesKotlinTest : AbstractBinaryCompatibilityTest() {
     }
 
     @Test
+    fun `new top-level kotlin property with @JvmName accessors`() {
+
+        checkBinaryCompatibleKotlin(
+            v1 = """
+                val existing = "file-facade-class"
+            """,
+            v2 = """
+                val existing = "file-facade-class"
+
+                /** @since 2.0 */
+                @get:Incubating
+                @get:JvmName("customBar")
+                val bar: String
+                    get() = "bar"
+
+                /** @since 2.0 */
+                @get:Incubating
+                @set:Incubating
+                @get:JvmName("customBazGet")
+                @set:JvmName("customBazSet")
+                var baz: String
+                    get() = "baz"
+                    set(value) {}
+            """
+        ) {
+            assertHasNoWarning()
+            assertHasInformation(
+                newApi("Method", "SourceKt.customBar()"),
+                newApi("Method", "SourceKt.customBazGet()"),
+                newApi("Method", "SourceKt.customBazSet(java.lang.String)"),
+            )
+        }
+    }
+
+    @Test
     fun `new constructor with mapped parameter types`() {
         val baseline = """
             /** @since 1.0 */
