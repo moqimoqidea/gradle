@@ -17,8 +17,9 @@ jar {
 
 tasks.register('printManifestAttribute') {
     dependsOn tasks.named('jar')
+    def jarFileProvider = tasks.named('jar', Jar).flatMap { it.archiveFile }
     doLast {
-        new java.util.jar.JarFile(tasks.named('jar', Jar).get().archiveFile.get().asFile).withCloseable { jarFile ->
+        new java.util.jar.JarFile(jarFileProvider.get().asFile).withCloseable { jarFile ->
             logger.quiet jarFile.manifest.mainAttributes.getValue('Build-Commit')
         }
     }

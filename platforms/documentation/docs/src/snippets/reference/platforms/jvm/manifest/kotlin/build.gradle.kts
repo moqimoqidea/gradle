@@ -21,8 +21,9 @@ tasks.jar {
 
 tasks.register("printManifestAttribute") {
     dependsOn(tasks.jar)
+    val jarFileProvider = tasks.jar.flatMap { it.archiveFile }
     doLast {
-        JarFile(tasks.jar.get().archiveFile.get().asFile).use { jarFile ->
+        JarFile(jarFileProvider.get().asFile).use { jarFile ->
             logger.quiet(jarFile.manifest.mainAttributes.getValue("Build-Commit"))
         }
     }
