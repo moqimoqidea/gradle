@@ -66,7 +66,8 @@ public abstract class GroovydocAntAction extends AntWorkAction<GroovydocParamete
             putIfNotNull(args, "javaVersion", parameters.getJavaVersion().getOrNull());
         }
         // The following options were added to the Groovydoc Ant task in Groovy 6.0.0.
-        if (isAtLeast(version, "6.0.0")) {
+        // Threshold is the first 6.0.0 pre-release so alphas/betas pick up the options while preserving "6.0.0" > "6.0.0-alpha-*".
+        if (isAtLeast(version, "6.0.0-alpha-1")) {
             args.put("showInternal", parameters.getShowInternal().get());
             args.put("noIndex", parameters.getNoIndex().get());
             args.put("noDeprecatedList", parameters.getNoDeprecatedList().get());
@@ -90,7 +91,7 @@ public abstract class GroovydocAntAction extends AntWorkAction<GroovydocParamete
             }
             // Additional stylesheets are configured via nested <addStylesheet file="..."/> elements,
             // available in the Groovydoc Ant task since Groovy 6.0.0.
-            if (isAtLeast(version, "6.0.0")) {
+            if (isAtLeast(version, "6.0.0-alpha-1")) {
                 for (File stylesheet : parameters.getAdditionalStylesheets().getFiles()) {
                     ant.createNode("addStylesheet", ImmutableMap.of("file", stylesheet.getAbsolutePath()));
                 }

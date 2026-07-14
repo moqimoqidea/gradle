@@ -28,9 +28,7 @@ import static org.gradle.util.internal.GroovyDependencyUtil.groovyModuleDependen
  * {@code syntaxHighlighter}, {@code theme}, {@code preLanguage} and additional stylesheets).
  *
  * <p>These options are silently ignored by earlier Groovy versions, so this spec only runs against
- * Groovy 6.0.0 and later. The current test matrix contains no such version yet, so the spec is
- * currently skipped; it will activate automatically once a Groovy 6.x release is added to
- * {@link GroovyCoverage}.</p>
+ * Groovy 6.0.0-alpha-2 and later, as selected by {@link GroovyCoverage#SUPPORTS_GROOVYDOC_GROOVY6_OPTIONS}.</p>
  */
 @TargetCoverage({ GroovyCoverage.SUPPORTS_GROOVYDOC_GROOVY6_OPTIONS })
 class GroovyDocGroovy6OptionsIntegrationTest extends MultiVersionIntegrationSpec {
