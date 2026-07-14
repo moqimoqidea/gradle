@@ -71,9 +71,11 @@ public abstract class EclipseJdt {
 
     private String javaRuntimeName;
 
+    @SuppressWarnings("deprecation")
     private final PropertiesFileContentMerger file;
 
     @Inject
+    @SuppressWarnings("deprecation")
     public EclipseJdt(PropertiesFileContentMerger file) {
         this.file = file;
     }

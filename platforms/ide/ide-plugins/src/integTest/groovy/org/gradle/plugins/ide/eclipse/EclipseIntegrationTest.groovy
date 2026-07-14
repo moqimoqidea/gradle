@@ -235,6 +235,8 @@ class EclipseIntegrationTest extends AbstractEclipseIntegrationTest {
                 ("org.gradle.plugins.ide.eclipse.model.EclipseJdt.file"): 1,
                 ("org.gradle.plugins.ide.eclipse.model.EclipseWtp.facet"): 1,
                 ("org.gradle.plugins.ide.eclipse.model.EclipseWtpComponent.file"): 1,
+                ("org.gradle.plugins.ide.api.PropertiesFileContentMerger.beforeMerged"): 1,
+                ("org.gradle.plugins.ide.api.PropertiesFileContentMerger.whenMerged"): 1,
         )
         runEclipseTask('''
             apply plugin: 'java'
