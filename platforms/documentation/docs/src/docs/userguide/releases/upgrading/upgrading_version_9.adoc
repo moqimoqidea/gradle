@@ -45,12 +45,10 @@ The previous step will help you identify potential problems by issuing deprecati
 ==== SHA-256 and SHA-512 checksums are no longer published
 
 When publishing to Maven or Ivy repositories, Gradle no longer publishes `.sha256` and `.sha512` checksum files alongside each artifact.
-Gradle now publishes only the checksums that repositories universally expect: `.sha1` and `.md5` for Maven, and `.sha1` for Ivy.
+Only universally supported checksums are published: `.sha1` and `.md5` for Maven and `.sha1` for Ivy.
 
-These extra checksums were rarely consumed and frequently rejected by repositories that do not recognize them, so publishing them added noise without a corresponding benefit.
-Consuming builds are unaffected: Gradle has never required SHA-256 or SHA-512 checksums to be present in order to resolve or verify artifacts.
-
-If you need SHA-256 or SHA-512 checksums for published artifacts, generate them as part of your publishing pipeline.
+These extra checksums were rarely consumed and frequently rejected by repositories that do not recognize them.
+Consuming builds are unaffected as Gradle has never required SHA-256 or SHA-512 checksums to be present in order to resolve or verify artifacts.
 
 The internal, undocumented `org.gradle.internal.publish.checksums.insecure` system property, which previously suppressed these extra checksums, no longer has any effect and can be removed.
 
