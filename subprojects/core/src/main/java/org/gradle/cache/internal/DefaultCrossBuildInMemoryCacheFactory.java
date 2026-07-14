@@ -84,7 +84,6 @@ public class DefaultCrossBuildInMemoryCacheFactory implements CrossBuildInMemory
         return cache;
     }
 
-
     @Override
     public <K, V> CrossBuildInMemoryCache<K, V> newCacheRetainingDataFromPreviousBuild(Predicate<V> retentionFilter) {
         CrossBuildCacheRetainingDataFromPreviousBuild<K, V> cache = new CrossBuildCacheRetainingDataFromPreviousBuild<>(retentionFilter);
@@ -253,7 +252,7 @@ public class DefaultCrossBuildInMemoryCacheFactory implements CrossBuildInMemory
          * re-introduce the pin this cache exists to avoid.
          */
         private static class Slot<V> {
-            volatile V value;
+            volatile @Nullable V value;
             volatile int epoch;
         }
 
@@ -276,15 +275,17 @@ public class DefaultCrossBuildInMemoryCacheFactory implements CrossBuildInMemory
             }
             synchronized (slot) {
                 epoch = currentEpoch.get();
-                if (slot.value == null || slot.epoch != epoch) {
+                V cached = slot.value;
+                if (cached == null || slot.epoch != epoch) {
                     V computed = factory.apply(key);
                     if (computed == null) {
                         throw new IllegalStateException("Factory '" + factory + "' failed to produce a value for key '" + key + "'!");
                     }
                     slot.value = computed;
                     slot.epoch = epoch;
+                    return computed;
                 }
-                return slot.value;
+                return cached;
             }
         }
 
