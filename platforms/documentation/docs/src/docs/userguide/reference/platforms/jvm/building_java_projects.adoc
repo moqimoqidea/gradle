@@ -485,6 +485,7 @@ include::sample[dir="snippets/reference/platforms/jvm/manifest/groovy",files="bu
 ====
 
 Manifest attribute values can be provided lazily using the Provider API.
+In the example above, `archiveVersion` and `buildCommit` are resolved only when Gradle writes the manifest for the `jar` task.
 The provider value is resolved when Gradle writes the manifest:
 
 ====

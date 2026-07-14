@@ -217,6 +217,7 @@ public abstract class Jar extends Zip {
      *
      * @param configureAction The action.
      * @return This.
+     * @see Manifest#attributes(java.util.Map)
      * @since 3.5
      */
     public Jar manifest(Action<? super Manifest> configureAction) {
