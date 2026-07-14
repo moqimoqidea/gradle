@@ -214,6 +214,8 @@ It does not include `gradle.properties` files in subproject directories, extra p
 link:{javadocPath}/org/gradle/api/Project.html#findProperty(java.lang.String)[`Project.findProperty()`], link:{javadocPath}/org/gradle/api/Project.html#property(java.lang.String)[`Project.property()`], and link:{javadocPath}/org/gradle/api/Project.html#hasProperty(java.lang.String)[`Project.hasProperty()`] search the dynamic project model in this order:
 
 . The current `Project` object's own properties.
+This includes the Gradle properties `version`, `group`, `status`, `buildDir`, and `description`, which Gradle applies directly to the `Project` object.
+All other Gradle properties are exposed via extra properties in step 2.
 . The current project's extra properties.
 Gradle properties not mapped directly to a `Project` property are available here.
 Values added explicitly to the extra properties extension take precedence over Gradle properties with the same name.
@@ -221,7 +223,15 @@ Values added explicitly to the extra properties extension take precedence over G
 . A task with the requested name.
 . Extra properties and extensions on ancestor projects, starting with the parent project and continuing to the root project.
 
-Gradle properties not mapped directly to a `Project` property use the following precedence in the extra properties extension, from highest to lowest:
+[WARNING]
+====
+Implicit lookup of properties and methods in parent projects (step 5) is deprecated in Gradle 9.6 and will be removed in Gradle 10.
+See <<upgrading_version_9.adoc#deprecated_implicit_lookup_in_parent_projects,the upgrade guide entry>> and <<isolated_projects.adoc#sec:no_implicit_parents_lookup,No implicit lookup of properties and methods in parent projects>>.
+Declare the property in the current project instead, or use `rootProject.ext.foo` or `parent.ext.foo` to make the cross-project reference explicit.
+====
+
+Explicit `set()` calls on the extra properties extension always take precedence over any Gradle-property source.
+Among the Gradle-property sources that feed extra properties, precedence is as follows (highest to lowest):
 
 . Command-line project properties passed with `-P`.
 . System properties with the `org.gradle.project.` prefix.
@@ -234,7 +244,7 @@ Gradle properties not mapped directly to a `Project` property use the following 
 The three dynamic lookup methods use the same search order but handle a missing value differently.
 `findProperty()` returns `null`, `property()` throws a `MissingPropertyException`, and `hasProperty()` returns `false`.
 
-The Kotlin DSL `project.extra` accessor and `project.extensions.extraProperties` expose only the current project's extra properties from step 2.
+The `project.extra` Kotlin DSL accessor and the `project.extensions.extraProperties` API expose only the current project's extra properties (step 2).
 They do not search the project's own properties, extensions, tasks, or ancestor projects.
 
 It is possible to change the behavior of a task based on project properties specified at invocation time.
