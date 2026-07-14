@@ -73,7 +73,6 @@ class BuildProgressCrossVersionSpec extends AbstractProgressCrossVersionSpec {
         toolingApi.requireIsolatedUserHome()
 
         def module = mavenHttpRepo.module('group', 'publish', '1')
-        module.withoutExtraChecksums()
 
         // module is published
         module.publish()
