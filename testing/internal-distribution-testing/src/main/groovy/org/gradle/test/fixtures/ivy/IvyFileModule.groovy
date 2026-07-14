@@ -58,7 +58,7 @@ class IvyFileModule extends AbstractModule implements IvyModule {
     String status = "integration"
     MetadataPublish metadataPublish = MetadataPublish.ALL
     boolean writeGradleMetadataRedirection = false
-    private boolean withExtraChecksums = true
+    private boolean withExtraChecksums = false
 
     int publishCount = 1
     XmlTransformer transformer = new XmlTransformer()

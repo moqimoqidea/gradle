@@ -56,7 +56,7 @@ abstract class AbstractMavenModule extends AbstractModule implements MavenModule
     private final List dependencies = []
     private Map<String, ?> mainArtifact = [:]
     private final List artifacts = []
-    private boolean extraChecksums = true
+    private boolean extraChecksums = false
 
     final Set<String> missingExtraChecksums = []
     final updateFormat = new SimpleDateFormat("yyyyMMddHHmmss")

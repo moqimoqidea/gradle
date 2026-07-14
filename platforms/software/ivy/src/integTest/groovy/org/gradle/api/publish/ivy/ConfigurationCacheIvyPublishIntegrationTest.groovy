@@ -287,8 +287,8 @@ class ConfigurationCacheIvyPublishIntegrationTest extends AbstractIntegrationSpe
 
     private void prepareIvyHttpRepository(IvyHttpRepository repository, HttpServer.PasswordCredentials credentials) {
         def rootModule = repository.module("group", "root")
-        rootModule.ivy.expectPublish(true, credentials)
-        rootModule.moduleMetadata.expectPublish(true, credentials)
+        rootModule.ivy.expectPublish(false, credentials)
+        rootModule.moduleMetadata.expectPublish(false, credentials)
     }
 
     private Map<File, String> ivyRepoFiles() {

@@ -347,10 +347,10 @@ class ConfigurationCacheMavenPublishIntegrationTest extends AbstractIntegrationS
 
     private void prepareMavenHttpRepository(MavenHttpRepository repository, HttpServer.PasswordCredentials credentials) {
         def rootModule = repository.module("group", "root")
-        rootModule.pom.expectPublish(true, credentials)
-        rootModule.moduleMetadata.expectPublish(true, credentials)
+        rootModule.pom.expectPublish(false, credentials)
+        rootModule.moduleMetadata.expectPublish(false, credentials)
         rootModule.rootMetaData.expectGetMissing(credentials)
-        rootModule.rootMetaData.expectPublish(true, credentials)
+        rootModule.rootMetaData.expectPublish(false, credentials)
     }
 
     private Map<File, String> mavenRepoFiles() {
