@@ -66,7 +66,7 @@ Gradle provides [Isolated Projects](userguide/isolated_projects.html), an incuba
 [Isolated Projects](userguide/isolated_projects.html) has graduated from experimental to incubating.
 It can now be enabled with the stable `org.gradle.isolated-projects` property and the new `--isolated-projects` CLI option, dropping the `.unsafe.` segment from the previous names.
 
-```properties
+```text
 # gradle.properties
 org.gradle.isolated-projects=true
 ```
@@ -88,7 +88,7 @@ Isolated Projects now offers three modes, each suited to a different stage of th
 
 The opt-in modes can also be combined, for example to complete an IDE sync that concurrency errors would otherwise interrupt:
 
-```properties
+```text
 # gradle.properties
 org.gradle.isolated-projects=true
 org.gradle.isolated-projects.diagnostics=true
