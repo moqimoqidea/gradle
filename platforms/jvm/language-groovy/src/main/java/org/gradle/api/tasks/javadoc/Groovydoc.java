@@ -466,14 +466,14 @@ public abstract class Groovydoc extends SourceTask {
 
     /**
      * The Java language version used when parsing Java source files, e.g. {@link JavaLanguageVersion#of(int) JavaLanguageVersion.of(17)}.
-     *
-     * <p>Groovydoc uses the JavaParser library to read Java sources; this controls the source level it assumes,
+     * <p>
+     * Groovydoc uses the JavaParser library to read Java sources; this controls the source level it assumes,
      * which is needed for parsing newer Java language constructs (for example, sealed classes require Java 17).
-     * When unset, Groovydoc uses the JavaParser library's own default.</p>
+     * When unset, Groovydoc uses the JavaParser library's own default.
+     * <p>
+     * Only has an effect with Groovy 4.0.27 or later; the option is silently ignored with earlier Groovy versions.
      *
-     * <p>Only has an effect with Groovy 4.0.27 or later; the option is silently ignored with earlier Groovy versions.</p>
-     *
-     * @since 9.7.0
+     * @since 9.8.0
      */
     @Incubating
     @Optional
@@ -482,11 +482,11 @@ public abstract class Groovydoc extends SourceTask {
 
     /**
      * Whether to include members annotated with {@code groovy.transform.Internal} (per GEP-17) in the generated documentation.
+     * <p>
+     * Defaults to {@code false}, so internal members are hidden. Only has an effect with Groovy 6.0.0 or later;
+     * the option is silently ignored with earlier Groovy versions.
      *
-     * <p>Defaults to {@code false}, so internal members are hidden. Only has an effect with Groovy 6.0.0 or later;
-     * the option is silently ignored with earlier Groovy versions.</p>
-     *
-     * @since 9.7.0
+     * @since 9.8.0
      */
     @Incubating
     @Input
@@ -494,11 +494,11 @@ public abstract class Groovydoc extends SourceTask {
 
     /**
      * Whether to suppress generation of the alphabetical index page ({@code index-all.html}) and its nav-bar link.
+     * <p>
+     * Defaults to {@code false}. Only has an effect with Groovy 6.0.0 or later;
+     * the option is silently ignored with earlier Groovy versions.
      *
-     * <p>Defaults to {@code false}. Only has an effect with Groovy 6.0.0 or later;
-     * the option is silently ignored with earlier Groovy versions.</p>
-     *
-     * @since 9.7.0
+     * @since 9.8.0
      */
     @Incubating
     @Input
@@ -506,11 +506,11 @@ public abstract class Groovydoc extends SourceTask {
 
     /**
      * Whether to suppress generation of the deprecated-list page ({@code deprecated-list.html}) and its nav-bar link.
+     * <p>
+     * Defaults to {@code false}. Only has an effect with Groovy 6.0.0 or later;
+     * the option is silently ignored with earlier Groovy versions.
      *
-     * <p>Defaults to {@code false}. Only has an effect with Groovy 6.0.0 or later;
-     * the option is silently ignored with earlier Groovy versions.</p>
-     *
-     * @since 9.7.0
+     * @since 9.8.0
      */
     @Incubating
     @Input
@@ -518,11 +518,11 @@ public abstract class Groovydoc extends SourceTask {
 
     /**
      * Whether to suppress generation of the help page ({@code help-doc.html}) and its nav-bar link.
+     * <p>
+     * Defaults to {@code false}. Only has an effect with Groovy 6.0.0 or later;
+     * the option is silently ignored with earlier Groovy versions.
      *
-     * <p>Defaults to {@code false}. Only has an effect with Groovy 6.0.0 or later;
-     * the option is silently ignored with earlier Groovy versions.</p>
-     *
-     * @since 9.7.0
+     * @since 9.8.0
      */
     @Incubating
     @Input
@@ -530,11 +530,11 @@ public abstract class Groovydoc extends SourceTask {
 
     /**
      * The client-side syntax highlighter for {@code {@snippet}} and fenced Markdown code blocks.
+     * <p>
+     * Valid values are {@code "prism"} (bundled) or {@code "none"} (default); any other value is treated as {@code "none"}.
+     * Only has an effect with Groovy 6.0.0 or later; the option is silently ignored with earlier Groovy versions.
      *
-     * <p>Valid values are {@code "prism"} (bundled) or {@code "none"} (default); any other value is treated as {@code "none"}.
-     * Only has an effect with Groovy 6.0.0 or later; the option is silently ignored with earlier Groovy versions.</p>
-     *
-     * @since 9.7.0
+     * @since 9.8.0
      */
     @Incubating
     @Input
@@ -549,10 +549,10 @@ public abstract class Groovydoc extends SourceTask {
      *   <li>{@code "dark"} — lock the palette to dark regardless of OS.</li>
      * </ul>
      *
-     * <p>Any other value is treated as {@code "auto"}. Only has an effect with Groovy 6.0.0 or later;
-     * the option is silently ignored with earlier Groovy versions.</p>
+     * Any other value is treated as {@code "auto"}. Only has an effect with Groovy 6.0.0 or later;
+     * the option is silently ignored with earlier Groovy versions.
      *
-     * @since 9.7.0
+     * @since 9.8.0
      */
     @Incubating
     @Input
@@ -560,14 +560,14 @@ public abstract class Groovydoc extends SourceTask {
 
     /**
      * The default language id applied to preformatted code blocks in rendered doc comments that carry no {@code class} attribute.
-     *
-     * <p>When set (for example, {@code "groovy"}), a post-pass adds {@code class="language-xxx"} to the opening tag of such
+     * <p>
+     * When set (for example, {@code "groovy"}), a post-pass adds {@code class="language-xxx"} to the opening tag of such
      * blocks, enabling syntax highlighting for legacy doc-comment code blocks without touching source files. Blocks that
-     * already carry any {@code class} attribute are left alone.</p>
+     * already carry any {@code class} attribute are left alone.
+     * <p>
+     * Only has an effect with Groovy 6.0.0 or later; the option is silently ignored with earlier Groovy versions.
      *
-     * <p>Only has an effect with Groovy 6.0.0 or later; the option is silently ignored with earlier Groovy versions.</p>
-     *
-     * @since 9.7.0
+     * @since 9.8.0
      */
     @Incubating
     @Optional
@@ -579,7 +579,7 @@ public abstract class Groovydoc extends SourceTask {
      *
      * <p>Only has an effect with Groovy 6.0.0 or later; the stylesheets are silently ignored with earlier Groovy versions.</p>
      *
-     * @since 9.7.0
+     * @since 9.8.0
      */
     @Incubating
     @InputFiles

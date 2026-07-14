@@ -84,7 +84,7 @@ class GroovyCoverage {
 
     private static boolean supportsTargetingJavaVersion(VersionNumber groovyVersion, JavaVersion javaVersion) {
         return switch (groovyVersion.major) {
-            case 6 -> javaVersion <= JavaVersion.VERSION_25
+            case 6 -> javaVersion <= JavaVersion.VERSION_26
             case 5 -> javaVersion <= JavaVersion.VERSION_26
             case 4 -> javaVersion <= JavaVersion.VERSION_25
             case 3 -> javaVersion <= JavaVersion.VERSION_17
