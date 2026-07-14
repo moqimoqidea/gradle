@@ -749,7 +749,7 @@ Check with the annotation processor project directly for the most up-to-date inf
 | link:https://github.com/airbnb/epoxy/releases/tag/4.0.0-beta1[4.0.0-beta1]
 | N/A
 
-| link:https://docs.hibernate.org/orm/7.2/userguide/html_single/#tooling-modelgen[Hibernate Processor] (formerly: link:https://docs.hibernate.org/orm/5.4/topical/html_single/metamodelgen/MetamodelGenerator.html[JPA Static Metamodel Generator] now supporting also Jakarta Data and some other things)
+| link:https://docs.hibernate.org/orm/7.2/userguide/html_single/#tooling-modelgen[Hibernate Processor] (formerly link:https://docs.hibernate.org/orm/5.4/topical/html_single/metamodelgen/MetamodelGenerator.html[JPA Static Metamodel Generator], now also supports Jakarta Data)
 | link:https://github.com/hibernate/hibernate-orm/releases/tag/5.4.11[5.4.11]
 | N/A
 
