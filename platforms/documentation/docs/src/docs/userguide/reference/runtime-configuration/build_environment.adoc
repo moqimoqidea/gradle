@@ -514,6 +514,7 @@ Allows running <<service_injection.adoc#toolingmodelbuilderregistry,Tooling Mode
 An explicit value will override `org.gradle.parallel` in this context.
 +
 _Default is the value of `org.gradle.parallel`._
+Prefer setting an explicit value; relying on the default is <<upgrading_version_9.adoc#deprecate_implicit_parallel_model_building,deprecated>>.
 
 `org.gradle.isolated-projects=(true,false)` since-gradle-label:9.7.0[]::
 
