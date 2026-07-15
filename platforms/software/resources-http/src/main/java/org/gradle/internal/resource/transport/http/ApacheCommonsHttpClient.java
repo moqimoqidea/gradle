@@ -44,13 +44,16 @@ import org.slf4j.LoggerFactory;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLHandshakeException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.SocketException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Supplier;
 
@@ -64,6 +67,18 @@ import static org.apache.http.client.protocol.HttpClientContext.REDIRECT_LOCATIO
 public class ApacheCommonsHttpClient implements HttpClient {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ApacheCommonsHttpClient.class);
+
+    /**
+     * Shared ObjectMapper instance for parsing RFC9457 Problem Details responses.
+     * Thread-safe after configuration.
+     */
+    private static final ObjectMapper OBJECT_MAPPER = createObjectMapper();
+
+    private static ObjectMapper createObjectMapper() {
+        return new ObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+            .configure(JsonGenerator.Feature.AUTO_CLOSE_TARGET, false);
+    }
 
     private final DocumentationRegistry documentationRegistry;
     private final HttpSettings settings;
@@ -259,51 +274,50 @@ public class ApacheCommonsHttpClient implements HttpClient {
         return redirectLocations.isEmpty() ? null : Iterables.getLast(redirectLocations);
     }
 
-    private static Response processResponse(Response response) {
+    private Response processResponse(Response response) {
         if (response.isSuccessful()) {
             return response;
-        }
-
-        // Consume content for non-successful responses. This avoids the connection being left open.
-        response.close();
-
-        if (response.isMissing()) {
+        } else if (response.isMissing()) {
+            // Consume content to avoid leaving the connection open.
+            response.close();
             LOGGER.info("Resource missing. [HTTP {}: {}]", response.getMethod(), stripUserCredentials(response.getEffectiveUri()));
             return response;
-        }
+        } else {
+            URI effectiveUri = stripUserCredentials(response.getEffectiveUri());
+            LOGGER.info("Failed to get resource: {}. [HTTP {}: {})]", response.getMethod(), response.getStatusCode(), effectiveUri);
 
-        URI effectiveUri = stripUserCredentials(response.getEffectiveUri());
-        LOGGER.info("Failed to get resource: {}. [HTTP {}: {})]", response.getMethod(), response.getStatusCode(), effectiveUri);
-        throw new HttpErrorStatusCodeException(response.getMethod(), effectiveUri.toString(), response.getStatusCode(), response.getStatusReason());
+            // Extract detailed error message (must be done before closing response)
+            String errorDetail = extractErrorDetail(response).orElse("");
+
+            // Close the response to avoid leaving connections open
+            response.close();
+
+            throw new HttpErrorStatusCodeException(response.getMethod(), effectiveUri.toString(), response.getStatusCode(), errorDetail);
+        }
     }
 
     /**
      * Extracts error detail from the HTTP response.
      * Supports RFC9457 (Problem Details for HTTP APIs) format.
-     * Falls back to reason phrase if RFC9457 is not available.
+     * Falls back to the HTTP reason phrase when RFC9457 is not available.
      *
      * @param response the HTTP response
-     * @return the error detail message
+     * @return the error detail message, or empty if none is available
      */
     @VisibleForTesting
-    String extractErrorDetail(HttpClientResponse response) {
-        // Try RFC9457 first
+    Optional<String> extractErrorDetail(HttpClient.Response response) {
         String contentType = response.getHeader("Content-Type");
-        if (contentType != null && contentType.contains("application/problem+json")) {
+        if (contentType != null && contentType.toLowerCase(Locale.ROOT).contains("application/problem+json")) {
             LOGGER.debug("RFC9457 content type detected: {}", contentType);
-            String rfc9457Detail = parseRFC9457Response(response);
-            if (rfc9457Detail != null) {
-                LOGGER.debug("RFC9457 error detail extracted: {}", rfc9457Detail);
+            Optional<String> rfc9457Detail = parseRFC9457Response(response);
+            if (rfc9457Detail.isPresent()) {
                 return rfc9457Detail;
             }
-            LOGGER.debug("RFC9457 parsing failed or returned null, falling back to reason phrase");
+            LOGGER.debug("RFC9457 parsing failed or produced no detail, falling back to reason phrase");
         }
 
         // Fallback to reason phrase (empty in HTTP/2)
-        String reasonPhrase = response.getStatusLine().getReasonPhrase();
-        String result = reasonPhrase != null ? reasonPhrase : "";
-        LOGGER.debug("Using fallback error detail: '{}'", result);
-        return result;
+        return Optional.ofNullable(response.getStatusReason()).filter(s -> !s.isEmpty());
     }
 
     /**
@@ -316,42 +330,30 @@ public class ApacheCommonsHttpClient implements HttpClient {
      * - instance: URI reference identifying the specific occurrence
      *
      * @param response the HTTP response
-     * @return the detail field from the RFC9457 response, or null if parsing fails
+     * @return the detail field (or title as fallback) from the RFC9457 response, or empty if parsing fails or yields no usable field
      */
     @VisibleForTesting
-    @Nullable
-    String parseRFC9457Response(HttpClientResponse response) {
+    Optional<String> parseRFC9457Response(HttpClient.Response response) {
         try {
-            java.io.InputStream content = response.getContent();
-            if (content == null) {
-                LOGGER.debug("RFC9457 response has no content");
-                return null;
-            }
-
+            InputStream content = response.getContent();
             Rfc9457Problem problem = OBJECT_MAPPER.readValue(content, Rfc9457Problem.class);
 
             LOGGER.trace("RFC9457 parsed successfully - type: {}, title: {}, status: {}, detail: {}, instance: {}",
-                problem.type(), problem.title(), problem.status(), problem.detail(), problem.instance());
+                problem.getType(), problem.getTitle(), problem.getStatus(), problem.getDetail(), problem.getInstance());
 
-            // Prefer "detail" field as it contains the specific explanation
-            String detail = problem.detail();
+            // Prefer "detail" field, fall back to "title" if detail is absent or empty
+            String detail = problem.getDetail();
             if (detail != null && !detail.isEmpty()) {
-                LOGGER.trace("Using RFC9457 'detail' field: {}", detail);
-                return detail;
+                return Optional.of(detail);
             }
-
-            // Fallback to "title" field if "detail" is not present
-            String title = problem.title();
+            String title = problem.getTitle();
             if (title != null && !title.isEmpty()) {
-                LOGGER.trace("RFC9457 'detail' field empty, using 'title' field: {}", title);
-                return title;
+                return Optional.of(title);
             }
-
-            LOGGER.trace("RFC9457 response has neither 'detail' nor 'title' fields");
-            return null;
+            return Optional.empty();
         } catch (Exception e) {
             LOGGER.warn("Failed to parse RFC9457 response", e);
-            return null;
+            return Optional.empty();
         }
     }
 
@@ -406,34 +408,60 @@ public class ApacheCommonsHttpClient implements HttpClient {
     }
 
     /**
-     * Record representing RFC9457 Problem Details for HTTP APIs.
+     * Represents RFC9457 Problem Details for HTTP APIs.
      * See: https://www.rfc-editor.org/rfc/rfc9457.html
      */
-    @NullMarked
     @VisibleForTesting
-    record Rfc9457Problem(
-        @Nullable String type,
-        @Nullable String title,
-        @Nullable Integer status,
-        @Nullable String detail,
-        @Nullable String instance
-    ) {
-    }
+    static class Rfc9457Problem {
+        @Nullable private String type;
+        @Nullable private String title;
+        @Nullable private Integer status;
+        @Nullable private String detail;
+        @Nullable private String instance;
 
-    /**
-     * Factory for creating the {@link HttpClientHelper}
-     */
-    @FunctionalInterface
-    @ServiceScope(Scope.Global.class)
-    public interface Factory {
-        HttpClientHelper create(HttpSettings settings);
+        @Nullable
+        public String getType() {
+            return type;
+        }
 
-        /**
-         * Method should only be used for DI registry and testing.
-         * For other uses of {@link HttpClientHelper}, inject an instance of {@link Factory} to create one.
-         */
-        static Factory createFactory(DocumentationRegistry documentationRegistry) {
-            return settings -> new HttpClientHelper(documentationRegistry, settings);
+        public void setType(@Nullable String type) {
+            this.type = type;
+        }
+
+        @Nullable
+        public String getTitle() {
+            return title;
+        }
+
+        public void setTitle(@Nullable String title) {
+            this.title = title;
+        }
+
+        @Nullable
+        public Integer getStatus() {
+            return status;
+        }
+
+        public void setStatus(@Nullable Integer status) {
+            this.status = status;
+        }
+
+        @Nullable
+        public String getDetail() {
+            return detail;
+        }
+
+        public void setDetail(@Nullable String detail) {
+            this.detail = detail;
+        }
+
+        @Nullable
+        public String getInstance() {
+            return instance;
+        }
+
+        public void setInstance(@Nullable String instance) {
+            this.instance = instance;
         }
     }
 
