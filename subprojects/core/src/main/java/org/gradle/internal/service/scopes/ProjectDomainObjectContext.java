@@ -48,11 +48,6 @@ public class ProjectDomainObjectContext implements DomainObjectContext {
     }
 
     @Override
-    public ProjectInternal getProject() {
-        return projectState.getMutableModel();
-    }
-
-    @Override
     public ProjectState getProjectState() {
         return projectState;
     }

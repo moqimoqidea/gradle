@@ -18,7 +18,6 @@ package org.gradle.api.internal.initialization;
 
 import org.gradle.api.internal.DomainObjectContext;
 import org.gradle.api.internal.project.ProjectIdentity;
-import org.gradle.api.internal.project.ProjectInternal;
 import org.gradle.api.internal.project.ProjectState;
 import org.gradle.groovy.scripts.ScriptSource;
 import org.gradle.internal.model.ModelContainer;
@@ -134,11 +133,6 @@ public abstract class StandaloneDomainObjectContext implements DomainObjectConte
 
     @Override
     public @Nullable ProjectIdentity getProjectIdentity() {
-        return null;
-    }
-
-    @Override
-    public @Nullable ProjectInternal getProject() {
         return null;
     }
 

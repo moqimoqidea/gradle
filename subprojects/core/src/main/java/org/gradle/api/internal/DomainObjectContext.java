@@ -17,7 +17,6 @@ package org.gradle.api.internal;
 
 import org.gradle.api.Describable;
 import org.gradle.api.internal.project.ProjectIdentity;
-import org.gradle.api.internal.project.ProjectInternal;
 import org.gradle.api.internal.project.ProjectState;
 import org.gradle.internal.model.ModelContainer;
 import org.gradle.internal.service.scopes.Scope;
@@ -51,14 +50,6 @@ public interface DomainObjectContext extends Describable {
      * If this context represents a project, its identity.
      */
     @Nullable ProjectIdentity getProjectIdentity();
-
-    /**
-     * If this context represents a project, the project.
-     *
-     * NOTE: This method should be avoided if at all possible. Instead, rely on
-     * {@link #getProjectIdentity()}, or if not possible, prefer {@link #getProjectState()}.
-     */
-    @Nullable ProjectInternal getProject();
 
     /**
      * If this context represents a project, the project state.
