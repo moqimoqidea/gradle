@@ -73,6 +73,17 @@ If you relied on mutable state surviving a cache hit, move it into a task proper
 
 === Potential breaking changes
 
+[[publish_no_sha256_sha512_checksums]]
+==== SHA-256 and SHA-512 checksums are no longer published
+
+When publishing to Maven or Ivy repositories, Gradle no longer publishes `.sha256` and `.sha512` checksum files alongside each artifact.
+Only universally supported checksums are published: `.sha1` and `.md5` for Maven and `.sha1` for Ivy.
+
+These extra checksums were rarely consumed and frequently rejected by repositories that do not recognize them.
+Consuming builds are unaffected as Gradle has never required SHA-256 or SHA-512 checksums to be present in order to resolve or verify artifacts.
+
+The internal, undocumented `org.gradle.internal.publish.checksums.insecure` system property, which previously suppressed these extra checksums, no longer has any effect and can be removed.
+
 [[project_cache_dir_no_longer_watched]]
 ==== The project cache directory is no longer watched
 
@@ -1059,7 +1070,10 @@ We are deprecating these file generation tasks:
 * associated `clean*` tasks
 
 In addition to the tasks, certain model properties that only affect the generated files are also deprecated.
-These include `idea.module.iml { ... }`, `idea.project.ipr { ... }`, `idea.workspace { ... }`, `eclipse.wtp { ... }`, and the `file { ... }` merging hooks on `EclipseJdt`.
+These include `idea.module.iml { ... }`, `idea.project.ipr { ... }`, `idea.workspace { ... }`, `idea.targetVersion`, `idea.pathVariables`, `idea.module.pathVariables`, `idea.project.projectLibraries`, `eclipse.wtp.facet { ... }`, the `file { ... }` merging hooks on `EclipseJdt` and `eclipse.wtp.component`, and the `withXml { ... }` hook on all `file { ... }` blocks.
+The `beforeMerged { ... }` and `whenMerged { ... }` hooks on the eclipse project and classpath models are _not_ deprecated, as they also affect the model consumed by the IDE.
+
+The rest of `eclipse.wtp { ... }` is _not_ deprecated: the `eclipse.wtp.component { ... }` configuration feeds the WTP classpath attributes surfaced via the Tooling API, which Eclipse Buildship consumes.
 
 The model properties that affect how IDEs understand your project (source directories, language levels, dependency scopes, etc.) are _not_ deprecated.
 When you apply the plugins and configure the `idea { ... }` or `eclipse { ... }` blocks in your build scripts, you can customize how your IDE understands your project.
