@@ -72,12 +72,8 @@ configurations.all {
 
 // tag::defer-resolution[]
 tasks.register("printDeps") {
-    doFirst {
-        configurations.getByName("compileClasspath").files.forEach { println(it) } // Deferring Dependency Resolution
-    }
-    doLast {
-        configurations.getByName("compileClasspath").files.forEach { println(it) } // Resolving Dependencies During Configuration
-    }
+    // BAD: Resolving dependencies during configuration phase
+    configurations.getByName("compileClasspath").files.forEach { println(it) }
 }
 // end::defer-resolution[]
 
