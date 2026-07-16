@@ -326,6 +326,9 @@ public abstract class IdeaPlugin extends IdePlugin {
         conventionMapping.map("excludeDirs", new Callable<Set<File>>() {
             @Override
             public Set<File> call() {
+                // ".gradle" is the default project cache dir name (see BuildScopeCacheDir). Hardcoding it here is a
+                // historical accident: it should honor the user-configurable --project-cache-dir instead.
+                // We deliberately leave it as-is, as this IDE model generation is scheduled for removal in Gradle 10.
                 excludeDirs.add(project.file(".gradle"));
                 excludeDirs.add(project.getLayout().getBuildDirectory().getAsFile().get());
                 return excludeDirs;
