@@ -41,6 +41,14 @@ The previous step will help you identify potential problems by issuing deprecati
 
 === Potential breaking changes
 
+[[publish_no_checksums_for_signature_files]]
+==== Checksum files are no longer published for signature files
+
+When publishing to Maven or Ivy repositories, Gradle no longer publishes checksum files (such as `.sha1` and `.md5`) for signature files like `.asc` and `.sig`.
+
+A signature is itself an integrity artifact, so a checksum of a signature provides no additional protection, and the standard Maven publishing tooling does not publish these files either.
+The signature files themselves continue to be published unchanged; only their checksum files are no longer produced.
+
 [[project_cache_dir_no_longer_watched]]
 ==== The project cache directory is no longer watched
 
