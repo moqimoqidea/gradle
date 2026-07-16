@@ -55,41 +55,41 @@ Switch your build to use Gradle @version@ by updating the [wrapper](userguide/gr
 
 See the [Gradle 9.x upgrade guide](userguide/upgrading_version_9.html#changes_@baseVersion@) to learn about deprecations, breaking changes, and other considerations when upgrading to Gradle @version@.
 
-For Java, Groovy, Kotlin, and Android compatibility, see the [full compatibility notes](userguide/compatibility.html).   
+For Java, Groovy, Kotlin, and Android compatibility, see the [full compatibility notes](userguide/compatibility.html).
 
 ## New features and usability improvements
 
 ### Isolated Projects
 [Isolated Projects](userguide/isolated_projects.html) is a performance feature that allows safely running project configuration in parallel and significantly reduces configuration time across many scenarios, including IDE sync and CI builds.
 
-Before running any task, Gradle needs to run the [Configuration Phase](build_lifecycle_intermediate.html). For repeating build invocations, this phase can be avoided via [Configuration Cache](userguide/configuration_cache.html). In all other cases, build invocations have to spend an often noticeable amount of time configuring projects, especially in large builds. This also applies to IDE sync, where the configuration phase cannot be skipped.
+Before running any task, Gradle needs to run the [Configuration Phase](userguide/build_lifecycle_intermediate.html). For repeating build invocations, this phase can be avoided via [Configuration Cache](userguide/configuration_cache.html). In all other cases, build invocations have to spend an often noticeable amount of time configuring projects, especially in large builds. This also applies to IDE sync, where the configuration phase cannot be skipped.
 
 Isolated Projects makes the configuration phase more scalable by leveraging parallelism. Instead of configuring projects one after the other, each project is configured in isolation, which can be done concurrently with its siblings.
 
 Isolated Projects can be enabled with a new flag `--isolated-projects` on the command line, or in the properties file:
 
-```properties
+```text
 # gradle.properties
 org.gradle.isolated-projects=true
 ```
 
-Enabling Isolated Projects can result in behavior changes, which are documented [here](userguide/isolated_projects.html#sec:behavior_changes), along with strategies for avoiding them.
+Enabling Isolated Projects can result in [behavior changes](userguide/isolated_projects.html#sec:behavior_changes); the documentation describes each one and how to avoid it.
 
 Isolated Projects serves as the foundation for future scalability work, allowing for more parallelism and reuse of work in the configuration phase.
 
 #### Isolated Projects constraints
-In order for builds to stay reliable under added parallelism, the isolation of projects has to be enforced via new [constraints](userguide/isolated_projects.html#sec:constraints) applied to the build logic. The core principle is that the configuration logic of a project cannot touch the mutable state of other projects or the build. For instance, calling project(“:other”).tasks or gradle.extensions is not allowed. Upon detecting a violation of the constraints, Gradle will fail the build immediately.
+In order for builds to stay reliable under added parallelism, the isolation of projects has to be enforced via new [constraints](userguide/isolated_projects.html#sec:constraints) applied to the build logic. The core principle is that the configuration logic of a project cannot touch the mutable state of other projects or the build. For instance, calling `project(":other").tasks` or `gradle.extensions` is not allowed. Upon detecting a violation of the constraints, Gradle will fail the build immediately.
 
 Initially, builds might have many violations, and Isolated Projects comes with a [Diagnostics mode](userguide/isolated_projects.html#sec:diagnostics_mode) that allows you to discover them without compromising safety.
 
-```properties
+```text
 # gradle.properties
 org.gradle.isolated-projects.diagnostics=true
 ```
 
 During the migration period, it can be useful to relax the constraints in order to evaluate the performance benefit specific to your build. It is possible to dangerously ignore the violations by treating them as warnings:
 
-```properties
+```text
 # gradle.properties
 org.gradle.isolated-projects.dangerously-ignore-problems=true
 ```
@@ -106,7 +106,7 @@ Follow the [migration](userguide/isolated_projects.html#sec:migration) guide to 
 The legacy `org.gradle.unsafe.isolated-projects` property names are now deprecated and will be removed in a future release.
 They continue to work as aliases for now.
 
-The feature is not enabled by default and is not yet recommended for production use. Your build and plugins will likely need changes to meet the safety [requirements](#isolated-projects-constraints). Compatibility with [Configuration Cache] is also a prerequisite for Isolated Projects.
+The feature is not enabled by default and is not yet recommended for production use. Your build and plugins will likely need changes to meet the safety [requirements](#isolated-projects-constraints). Compatibility with [Configuration Cache](userguide/configuration_cache.html) is also a prerequisite for Isolated Projects.
 
 See the [Isolated Projects](userguide/isolated_projects.html) documentation in the Gradle User Manual for more details.
 
@@ -163,7 +163,7 @@ Previously, attaching a third-party agent with the Configuration Cache enabled w
 
 The Configuration Cache now supports third-party `-javaagent:` attachments to the build JVM in regular daemon builds and in TestKit's default daemon mode:
 
-```properties
+```text
 # gradle.properties of the build under test
 org.gradle.jvmargs=-javaagent:/path/to/jacocoagent.jar=destfile=build/jacoco/functionalTest.exec
 ```
@@ -308,6 +308,7 @@ tasks.register("process") {
     }
 }
 ```
+
 See the [Collections](userguide/collections.html#collection_types) section in the Gradle User Manual for more details.
 
 #### Java toolchain support for Groovydoc
@@ -407,7 +408,7 @@ The new `ENHANCED_GRAPH_ORDERING` feature preview opts into the ordering behavio
 
 - `DEFAULT` uses a standard breadth-first ordering, placing dependencies closer to the root earlier on the classpath. This option results in the most predictable dependency ordering.
 - `CONSUMER_FIRST` traverses the graph topologically, sorting artifacts before those that they depend on.
-- `DEPENDENCY_FIRST` is the reverse of `CONSUMER_FIRST`
+- `DEPENDENCY_FIRST` is the reverse of `CONSUMER_FIRST`.
 
 All sort orders ignore constraint edges when traversing the resolved graph, so constraints no longer affect artifact ordering.
 
