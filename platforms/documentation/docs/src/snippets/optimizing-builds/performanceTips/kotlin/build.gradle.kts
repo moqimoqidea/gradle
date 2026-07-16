@@ -70,13 +70,6 @@ configurations.all {
 }
 // end::cache-dynamic-versions[]
 
-// tag::defer-resolution[]
-tasks.register("printDeps") {
-    // BAD: Resolving dependencies during configuration phase
-    configurations.getByName("compileClasspath").files.forEach { println(it) }
-}
-// end::defer-resolution[]
-
 // tag::custom-resolution-logic[]
 configurations.all {
     resolutionStrategy.eachDependency {
@@ -87,3 +80,10 @@ configurations.all {
     }
 }
 // end::custom-resolution-logic[]
+
+// tag::defer-resolution[]
+tasks.register("printDeps") {
+    // BAD: Resolving dependencies during configuration phase
+    configurations.getByName("compileClasspath").files.forEach { println(it) }
+}
+// end::defer-resolution[]
