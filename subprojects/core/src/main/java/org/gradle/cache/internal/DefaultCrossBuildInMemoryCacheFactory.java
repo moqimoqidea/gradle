@@ -18,7 +18,6 @@ package org.gradle.cache.internal;
 
 import org.gradle.cache.ManualEvictionInMemoryCache;
 import org.gradle.internal.UncheckedException;
-import org.gradle.internal.classloader.VisitableURLClassLoader;
 import org.gradle.internal.event.ListenerManager;
 import org.gradle.internal.lazy.Lazy;
 import org.gradle.internal.session.BuildSessionLifecycleListener;
@@ -29,23 +28,28 @@ import java.lang.ref.SoftReference;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import static java.util.Collections.synchronizedMap;
 
 /**
  * A factory for {@link CrossBuildInMemoryCache} instances.
  *
  * Note that this implementation should only be used to create global scoped services.
- * Note that this implementation currently retains strong references to keys and values during the whole lifetime of a build session.
  *
- * Uses a simple algorithm to collect unused values, by retaining strong references to all keys and values used during the current build session, and the previous build session. All other values are referenced only by soft references.
+ * The general-purpose caches ({@link #newCache()}) retain strong references to all keys and values used during the
+ * current and previous build session, and reference all other values only by soft references, so they may be
+ * collected under memory pressure.
+ *
+ * The class caches ({@link #newClassCache()} and {@link #newClassMap()}) instead associate each value with its key
+ * {@link Class} via {@link ClassValue}, so a value lives exactly as long as its key class and is evicted only when
+ * that class is unloaded, never under memory pressure. This lets classes -- and the ClassLoaders that define them --
+ * be collected as soon as they are otherwise unused, including within a single build session.
  */
 @ThreadSafe
 public class DefaultCrossBuildInMemoryCacheFactory implements CrossBuildInMemoryCacheFactory {
@@ -57,14 +61,14 @@ public class DefaultCrossBuildInMemoryCacheFactory implements CrossBuildInMemory
 
     @Override
     public <K, V> CrossBuildInMemoryCache<K, V> newCache() {
-        DefaultCrossBuildInMemoryCache<K, V> cache = new DefaultCrossBuildInMemoryCache<>(KeyRetentionPolicy.STRONG);
+        DefaultCrossBuildInMemoryCache<K, V> cache = new DefaultCrossBuildInMemoryCache<>();
         listenerManager.addListener(cache);
         return cache;
     }
 
     @Override
     public <K, V> CrossBuildInMemoryCache<K, V> newCache(Consumer<V> onReuse) {
-        DefaultCrossBuildInMemoryCache<K, V> cache = new DefaultCrossBuildInMemoryCache<K, V>(KeyRetentionPolicy.STRONG) {
+        DefaultCrossBuildInMemoryCache<K, V> cache = new DefaultCrossBuildInMemoryCache<K, V>() {
             @Nullable
             @Override
             protected V maybeGetRetainedValue(K key) {
@@ -80,7 +84,6 @@ public class DefaultCrossBuildInMemoryCacheFactory implements CrossBuildInMemory
         return cache;
     }
 
-
     @Override
     public <K, V> CrossBuildInMemoryCache<K, V> newCacheRetainingDataFromPreviousBuild(Predicate<V> retentionFilter) {
         CrossBuildCacheRetainingDataFromPreviousBuild<K, V> cache = new CrossBuildCacheRetainingDataFromPreviousBuild<>(retentionFilter);
@@ -90,18 +93,12 @@ public class DefaultCrossBuildInMemoryCacheFactory implements CrossBuildInMemory
 
     @Override
     public <V> CrossBuildInMemoryCache<Class<?>, V> newClassCache() {
-        // TODO: Should use some variation of DefaultClassMap below to associate values with classes, as currently we retain a strong reference to each value for one session after the ClassLoader
-        //       for the entry's key is discarded, which is unnecessary because we won't attempt to locate the entry again once the ClassLoader has been discarded
-        DefaultCrossBuildInMemoryCache<Class<?>, V> cache = new DefaultCrossBuildInMemoryCache<>(KeyRetentionPolicy.WEAK);
-        listenerManager.addListener(cache);
-        return cache;
+        return new ClassValueCache<>();
     }
 
     @Override
     public <V> CrossBuildInMemoryCache<Class<?>, V> newClassMap() {
-        DefaultClassMap<V> map = new DefaultClassMap<>();
-        listenerManager.addListener(map);
-        return map;
+        return new ClassValueCache<>();
     }
 
     private abstract static class AbstractCrossBuildInMemoryCache<K, V> implements CrossBuildInMemoryCache<K, V>, BuildSessionLifecycleListener {
@@ -192,30 +189,12 @@ public class DefaultCrossBuildInMemoryCacheFactory implements CrossBuildInMemory
         }
     }
 
-    private enum KeyRetentionPolicy {
-        WEAK,
-        STRONG
-    }
-
     private static class DefaultCrossBuildInMemoryCache<K, V> extends AbstractCrossBuildInMemoryCache<K, V> {
 
         // This is used only to retain strong references to the values
         private final Set<V> valuesForPreviousSession = new HashSet<>();
-        private final Map<K, SoftReference<V>> allValues;
-
-        public DefaultCrossBuildInMemoryCache(KeyRetentionPolicy retentionPolicy) {
-            this.allValues = mapFor(retentionPolicy);
-        }
-
-        private Map<K, SoftReference<V>> mapFor(KeyRetentionPolicy retentionPolicy) {
-            switch (retentionPolicy) {
-                case WEAK:
-                    return synchronizedMap(new WeakHashMap<>());
-                case STRONG:
-                    return new ConcurrentHashMap<>();
-            }
-            throw new IllegalArgumentException("Unknown retention policy: " + retentionPolicy);
-        }
+        // Keys are held strongly; values are held via soft references so they may be collected under memory pressure.
+        private final Map<K, SoftReference<V>> allValues = new ConcurrentHashMap<>();
 
         @Override
         protected void retainValuesFromCurrentSession(Stream<V> values) {
@@ -251,40 +230,84 @@ public class DefaultCrossBuildInMemoryCacheFactory implements CrossBuildInMemory
     }
 
     /**
-     * Retains strong references to the keys and values via the key's ClassLoader. This allows the ClassLoader to be collected.
+     * A {@link CrossBuildInMemoryCache} of values computed per {@link Class} key, backed by {@link ClassValue} so
+     * that each value is stored on its key {@code Class} itself. A value therefore lives exactly as long as its key
+     * class (and the {@link ClassLoader} that defined it) is reachable, and imposes no other retention. This lets
+     * classes -- and the ClassLoaders that define them -- be collected as soon as they are otherwise unused, even
+     * within a single build session, without this long-lived cache pinning them (see gradle/gradle#18313).
+     *
+     * <p>This deliberately does <em>not</em> extend {@link AbstractCrossBuildInMemoryCache}: that base strongly
+     * retains every value in its {@code valuesForThisSession} map for the whole build session, which would
+     * re-introduce exactly the pin this class exists to avoid.
+     *
+     * <p>Invariant: a value cached under a key {@code Class} must not strongly reference any other, shorter-lived
+     * class, or that class would be retained for the key's lifetime. This holds for the current consumers, which
+     * cache values describing their own key class (constructors, generated subclasses, type metadata).
      */
-    private static class DefaultClassMap<V> extends AbstractCrossBuildInMemoryCache<Class<?>, V> {
-        // Currently retains strong references to types that are not loaded using a VisitableURLClassLoader
-        // This is fine for JVM types, but a problem when a custom ClassLoader is used (which should probably be deprecated instead of supported)
-        private final Map<Class<?>, V> leakyValues = new ConcurrentHashMap<>();
+    private static class ClassValueCache<V> implements CrossBuildInMemoryCache<Class<?>, V> {
 
-        @Override
-        protected void retainValuesFromCurrentSession(Stream<V> values) {
-            // Ignore
+        /**
+         * Holds the cached value on the key {@code Class}. The {@code epoch} lets {@link #clear()} invalidate every
+         * entry in O(1) without keeping a registry of keys -- such a registry would reference the keys and so
+         * re-introduce the pin this cache exists to avoid.
+         */
+        private static class Slot<V> {
+            volatile @Nullable V value;
+            volatile int epoch;
         }
 
-        @Override
-        protected void discardRetainedValues() {
-            throw new UnsupportedOperationException();
-        }
+        private final ClassValue<Slot<V>> slots = new ClassValue<Slot<V>>() {
+            @Override
+            protected Slot<V> computeValue(Class<?> type) {
+                return new Slot<>();
+            }
+        };
+
+        private final AtomicInteger currentEpoch = new AtomicInteger();
 
         @Override
-        protected void retainValue(Class<?> key, V v) {
-            getCacheScope(key).put(key, v);
+        public V get(Class<?> key, Function<? super Class<?>, ? extends V> factory) {
+            Slot<V> slot = slots.get(key);
+            int epoch = currentEpoch.get();
+            V value = slot.value;
+            if (value != null && slot.epoch == epoch) {
+                return value;
+            }
+            synchronized (slot) {
+                epoch = currentEpoch.get();
+                V cached = slot.value;
+                if (cached == null || slot.epoch != epoch) {
+                    V computed = factory.apply(key);
+                    if (computed == null) {
+                        throw new IllegalStateException("Factory '" + factory + "' failed to produce a value for key '" + key + "'!");
+                    }
+                    slot.value = computed;
+                    slot.epoch = epoch;
+                    return computed;
+                }
+                return cached;
+            }
         }
 
         @Nullable
         @Override
-        protected V maybeGetRetainedValue(Class<?> key) {
-            return getCacheScope(key).get(key);
+        public V getIfPresent(Class<?> key) {
+            Slot<V> slot = slots.get(key);
+            return slot.epoch == currentEpoch.get() ? slot.value : null;
         }
 
-        private Map<Class<?>, V> getCacheScope(Class<?> type) {
-            ClassLoader classLoader = type.getClassLoader();
-            if (classLoader instanceof VisitableURLClassLoader) {
-                return ((VisitableURLClassLoader) classLoader).getUserData(this, ConcurrentHashMap::new);
+        @Override
+        public void put(Class<?> key, V value) {
+            Slot<V> slot = slots.get(key);
+            synchronized (slot) {
+                slot.value = value;
+                slot.epoch = currentEpoch.get();
             }
-            return leakyValues;
+        }
+
+        @Override
+        public void clear() {
+            currentEpoch.incrementAndGet();
         }
     }
 
