@@ -16,7 +16,6 @@
 
 package org.gradle.internal.resource.transport.http;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
@@ -289,10 +288,14 @@ public class ApacheCommonsHttpClient implements HttpClient {
             // Extract detailed error message (must be done before closing response)
             String errorDetail = extractErrorDetail(response).orElse("");
 
+            // Capture response state before closing, as reading a closed response is fragile
+            String method = response.getMethod();
+            int statusCode = response.getStatusCode();
+
             // Close the response to avoid leaving connections open
             response.close();
 
-            throw new HttpErrorStatusCodeException(response.getMethod(), effectiveUri.toString(), response.getStatusCode(), errorDetail);
+            throw new HttpErrorStatusCodeException(method, effectiveUri.toString(), statusCode, errorDetail);
         }
     }
 
