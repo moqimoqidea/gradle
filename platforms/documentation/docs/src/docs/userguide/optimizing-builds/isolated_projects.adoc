@@ -52,8 +52,14 @@ Such changes are highlighted in the release notes for each release.
 [[sec:changelog]]
 == Recent changes
 
-Changes from Gradle 9.7.0 onward are highlighted in the release notes for each release.
-Earlier changes, from while the feature was experimental, are listed here:
+* Gradle 9.7.0
+** Isolated Projects is promoted from experimental to <<feature_lifecycle.adoc#sec:incubating_state,incubating>>.
+** The stable `org.gradle.isolated-projects` property names are now preferred, and the earlier `.unsafe` names are <<sec:enable,deprecated>>.
+** The build now <<sec:enable,fails immediately>> on the first violation by default. Use the <<sec:diagnostics_mode,Diagnostics mode>> to discover as many violations as possible in a single run.
+** Many `Gradle` APIs are now treated as incompatible when accessed during project configuration, protecting the <<sec:project_to_build_access,mutable build-scoped state>>.
+** The new <<sec:dangerously_ignore_problems,temporarily ignore violations>> mode reports violations without failing the build, so you can evaluate performance before fixing them.
+** The Configuration Cache `--configuration-cache-problems=warn` flag no longer downgrades Isolated Projects violations to warnings.
+** The `-x` / `--exclude-tasks` option is now supported on the command line.
 
 * Gradle 9.6.0
 ** Additional APIs on `BuildServiceRegistry` are treated as incompatible:

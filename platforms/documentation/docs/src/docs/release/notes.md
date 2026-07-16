@@ -66,6 +66,8 @@ Before running any task, Gradle needs to run the [Configuration Phase](userguide
 
 Isolated Projects makes the configuration phase more scalable by leveraging parallelism. Instead of configuring projects one after the other, each project is configured in isolation, which can be done concurrently with its siblings.
 
+![Isolated Projects demo](release-notes-assets/isolated-projects.gif)
+
 Isolated Projects can be enabled with a new flag `--isolated-projects` on the command line, or in the properties file:
 
 ```text
