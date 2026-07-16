@@ -12,11 +12,11 @@
 
 We are excited to announce Gradle @version@ (released [@releaseDate@](https://gradle.org/releases/)).
 
-In this release, [Isolated Projects](#isolated-projects-improvements) graduates from experimental to incubating with stable `org.gradle.isolated-projects` property names, and introduces three modes — fail-fast, diagnostics, and dangerously-ignore-problems — to guide teams through adoption.
+In this release, [Isolated Projects](#isolated-projects) performance feature graduates from experimental to incubating, bringing safe parallel project configuration and a number of tools to help you migrate.
 
 This release also enhances the [Configuration Cache](#configuration-cache-improvements): `ResolutionResult` can now be included directly as a task input, and source dependencies resolved from version control repositories become fully cache-compatible.
 
-[Test reporting and execution](#test-reporting-and-execution) now surfaces framework-initialization failures for TestNG, JUnit 4, and JUnit Platform in the console by default, and TestNG's `threadPoolFactoryClass` gains support for TestNG 7.10 and later.
+[Test reporting and execution](#test-reporting-and-execution) now surfaces framework-initialization failures for TestNG, JUnit 4, and JUnit Platform in the console by default, and Gradle’s `threadPoolFactoryClass` option for TestNG now supports TestNG 7.10 and later.
 
 The [CLI, logging, and problem reporting](#cli-logging-and-problem-reporting) captures source locations for up to 2000 more problems past the existing 50-problem cap, so the console, problems report, and Tooling API pinpoint many more issues.
 
@@ -55,47 +55,60 @@ Switch your build to use Gradle @version@ by updating the [wrapper](userguide/gr
 
 See the [Gradle 9.x upgrade guide](userguide/upgrading_version_9.html#changes_@baseVersion@) to learn about deprecations, breaking changes, and other considerations when upgrading to Gradle @version@.
 
-For Java, Groovy, Kotlin, and Android compatibility, see the [full compatibility notes](userguide/compatibility.html).   
+For Java, Groovy, Kotlin, and Android compatibility, see the [full compatibility notes](userguide/compatibility.html).
 
 ## New features and usability improvements
 
-### Isolated Projects improvements
-Gradle provides [Isolated Projects](userguide/isolated_projects.html), an incubating feature that enables parallel project configuration.
+### Isolated Projects
+[Isolated Projects](userguide/isolated_projects.html) is a performance feature that allows safely running project configuration in parallel and significantly reduces configuration time across many scenarios, including IDE sync and CI builds.
 
-#### Isolated Projects is now incubating
-[Isolated Projects](userguide/isolated_projects.html) has graduated from experimental to incubating.
-It can now be enabled with the stable `org.gradle.isolated-projects` property and the new `--isolated-projects` CLI option, dropping the `.unsafe.` segment from the previous names.
+Before running any task, Gradle needs to run the [Configuration Phase](userguide/build_lifecycle_intermediate.html). For repeating build invocations, this phase can be avoided via [Configuration Cache](userguide/configuration_cache.html). In all other cases, build invocations have to spend an often noticeable amount of time configuring projects, especially in large builds. This also applies to IDE sync, where the configuration phase cannot be skipped.
+
+Isolated Projects makes the configuration phase more scalable by leveraging parallelism. Instead of configuring projects one after the other, each project is configured in isolation, which can be done concurrently with its siblings.
+
+Isolated Projects can be enabled with a new flag `--isolated-projects` on the command line, or in the properties file:
 
 ```text
 # gradle.properties
 org.gradle.isolated-projects=true
 ```
 
-The legacy `org.gradle.unsafe.isolated-projects` property names are now deprecated and will be removed in a future release.
-They continue to work as aliases for now.
-See the [upgrade guide](userguide/upgrading_version_9.html#deprecated_unsafe_isolated_projects_properties) for the full list of renamed properties.
+Enabling Isolated Projects can result in [behavior changes](userguide/isolated_projects.html#sec:behavior_changes); the documentation describes each one and how to avoid it.
 
-#### Isolated Projects now offers three modes for handling constraint violations
-Builds adopting [Isolated Projects](userguide/isolated_projects.html) typically contain [constraint violations](userguide/isolated_projects.html#sec:constraint_violations) that must be fixed over time.
-Isolated Projects now offers three modes, each suited to a different stage of that journey:
+Isolated Projects serves as the foundation for future scalability work, allowing for more parallelism and reuse of work in the configuration phase.
 
-- **Fail-fast** — the default. Project configuration runs in parallel and the build fails as soon as a violation is detected, guaranteeing reliable build results.
-- **[Diagnostics](userguide/isolated_projects.html#sec:diagnostics_mode)** (`org.gradle.isolated-projects.diagnostics`) — project configuration runs sequentially and the build continues past
-  violations, reporting all of them deterministically. Use this to discover what needs fixing during migration.
-- **[Dangerously ignore problems](userguide/isolated_projects.html#sec:dangerously_ignore_problems)** (`org.gradle.isolated-projects.dangerously-ignore-problems`) — violations are reported but
-  do not fail the build, and parallel configuration stays active. Use this to estimate the parallel build or IDE sync speedup before fixing every violation. Build outputs may be incorrect while
-  violations are ignored, so never use this mode to produce artifacts.
+#### Isolated Projects constraints
+In order for builds to stay reliable under added parallelism, the isolation of projects has to be enforced via new [constraints](userguide/isolated_projects.html#sec:constraints) applied to the build logic. The core principle is that the configuration logic of a project cannot touch the mutable state of other projects or the build. For instance, calling `project(":other").tasks` or `gradle.extensions` is not allowed. Upon detecting a violation of the constraints, Gradle will fail the build immediately.
 
-The opt-in modes can also be combined, for example to complete an IDE sync that concurrency errors would otherwise interrupt:
+Initially, builds might have many violations, and Isolated Projects comes with a [Diagnostics mode](userguide/isolated_projects.html#sec:diagnostics_mode) that allows you to discover them without compromising safety.
 
 ```text
 # gradle.properties
-org.gradle.isolated-projects=true
 org.gradle.isolated-projects.diagnostics=true
+```
+
+During the migration period, it can be useful to relax the constraints in order to evaluate the performance benefit specific to your build. It is possible to dangerously ignore the violations by treating them as warnings:
+
+```text
+# gradle.properties
 org.gradle.isolated-projects.dangerously-ignore-problems=true
 ```
 
-In all modes, the severity of Isolated Projects violations is now independent of the Configuration Cache `--configuration-cache-problems=warn` flag.
+Both additional flags require Isolated Projects to be enabled to take effect.
+
+See the [Isolated Projects Constraints](userguide/isolated_projects.html#sec:constraints) chapter in the Gradle User Manual for more details.
+
+#### Isolated Projects is now incubating
+In this release, the feature transitions from being experimental to incubating. It is ready for early adopters to try and share feedback.
+
+Follow the [migration](userguide/isolated_projects.html#sec:migration) guide to make your build compatible with Isolated Projects.
+
+The legacy `org.gradle.unsafe.isolated-projects` property names are now deprecated and will be removed in a future release.
+They continue to work as aliases for now.
+
+The feature is not enabled by default and is not yet recommended for production use. Your build and plugins will likely need changes to meet the safety [requirements](#isolated-projects-constraints). Compatibility with [Configuration Cache](userguide/configuration_cache.html) is also a prerequisite for Isolated Projects.
+
+See the [Isolated Projects](userguide/isolated_projects.html) documentation in the Gradle User Manual for more details.
 
 ### Configuration Cache improvements
 Gradle provides a [Configuration Cache](userguide/configuration_cache.html) that improves build time by caching the result of the configuration phase and reusing it for subsequent builds.
@@ -142,32 +155,6 @@ tasks.register<NewTask>("after") {
 }
 ```
 
-#### Source dependencies are compatible with the Configuration Cache
-Source dependencies now work with the [Configuration Cache](userguide/configuration_cache.html).
-
-Source dependencies let a build resolve a dependency by building it directly from a version control repository.
-They are declared with a `sourceControl { vcsMappings { ... } }` block in the settings file.
-
-A build that maps a dependency to a Git repository now stores and reuses a Configuration Cache entry like any other build:
-
-```kotlin
-// settings.gradle.kts
-sourceControl {
-    vcsMappings {
-        withModule("org.example:lib") {
-            from(GitVersionControlSpec::class) {
-                url = uri("https://github.com/example/lib.git")
-            }
-        }
-    }
-}
-```
-
-When a source dependency is selected with a dynamic selector — a branch, `latest.integration`, or a version range — the resolved commit can move between builds, so Gradle always invalidates the Configuration Cache entry for that build and re-resolves it, mirroring how [dynamic versions](userguide/dependency_versions.html) of external dependencies are handled.
-A source dependency pinned to a static version reuses the cached entry until an input, such as the `vcsMappings` configuration or the resolved upstream commit, changes.
-
-See the [Configuration Cache](userguide/configuration_cache.html) chapter in the Gradle User Manual for more details.
-
 #### Third-party Java agents work with the Configuration Cache in TestKit
 [TestKit](userguide/test_kit.html) lets plugin authors functionally test their build logic by running real builds with `GradleRunner`.
 A common setup attaches a Java agent to the build JVM, for example the JaCoCo coverage agent to measure code coverage of the plugin under test.
@@ -176,7 +163,7 @@ Previously, attaching a third-party agent with the Configuration Cache enabled w
 
 The Configuration Cache now supports third-party `-javaagent:` attachments to the build JVM in regular daemon builds and in TestKit's default daemon mode:
 
-```properties
+```text
 # gradle.properties of the build under test
 org.gradle.jvmargs=-javaagent:/path/to/jacocoagent.jar=destfile=build/jacoco/functionalTest.exec
 ```
@@ -200,7 +187,7 @@ Gradle now sets the property at the start of every build, so its value stays sta
 This resolves [one of the most highly-voted Configuration Cache issues](https://github.com/gradle/gradle/issues/30145).
 
 ### Test reporting and execution
-Gradle provides an intuitive [command-line interface](userguide/command_line_interface.html), detailed [logs](userguide/logging.html), and a structured [problems report](userguide/reporting_problems.html#sec:generated_html_report) that helps developers quickly identify and resolve build issues.
+Gradle provides a [set of features and abstractions](userguide/java_testing.html) for testing JVM code, along with test reports to display results.
 
 #### Test framework initialization failures for TestNG, JUnit 4, and JUnit Platform are always logged to the console
 Gradle's [test logging](userguide/java_testing.html#sec:test_logging) now surfaces test-framework startup failures from TestNG, JUnit 4, and JUnit Platform even when the default granularity would otherwise hide them.
@@ -321,6 +308,7 @@ tasks.register("process") {
     }
 }
 ```
+
 See the [Collections](userguide/collections.html#collection_types) section in the Gradle User Manual for more details.
 
 #### Java toolchain support for Groovydoc
@@ -410,6 +398,28 @@ $ ./gradlew build --watch-fs --project-cache-dir /custom/path
 ```
 
 See the [Excluding files and directories](userguide/file_system_watching.html#sec:excluding_files_and_directories) section in the Gradle User Manual for more details.
+
+#### Preview improved dependency resolution ordering
+When Gradle resolves a [configuration](userguide/dependency_configurations.html), the order of the resulting artifacts, such as entries on a JVM classpath, is determined by how the dependency graph is traversed.
+
+Previously, [dependency constraints](userguide/dependency_constraints.html) participated in that traversal, so adding or updating a constraint (for example, from a platform or a lockfile) could unexpectedly reorder the classpath even though constraints contribute no artifacts of their own.
+
+The new `ENHANCED_GRAPH_ORDERING` feature preview opts into the ordering behavior that will become the default in Gradle 10:
+
+- `DEFAULT` uses a standard breadth-first ordering, placing dependencies closer to the root earlier on the classpath. This option results in the most predictable dependency ordering.
+- `CONSUMER_FIRST` traverses the graph topologically, sorting artifacts before those that they depend on.
+- `DEPENDENCY_FIRST` is the reverse of `CONSUMER_FIRST`.
+
+All sort orders ignore constraint edges when traversing the resolved graph, so constraints no longer affect artifact ordering.
+
+Enable this preview in your settings file to try the new behavior and report any issues before it becomes the default in Gradle 10:
+
+```kotlin
+// settings.gradle.kts
+enableFeaturePreview("ENHANCED_GRAPH_ORDERING")
+```
+
+See the [upgrade guide](userguide/upgrading_version_9.html#dependency_resolution_ordering) for more details.
 
 ## Promoted features
 
