@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 the original author or authors.
+ * Copyright 2026 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,25 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.gradle.api.internal.artifacts.dsl;
 
-import org.gradle.api.artifacts.dsl.ComponentMetadataHandler;
-import org.gradle.internal.DisplayName;
-import org.gradle.internal.component.external.model.VariantDerivationStrategy;
 import org.gradle.internal.service.scopes.Scope;
 import org.gradle.internal.service.scopes.ServiceScope;
 
-import java.util.function.Consumer;
-
+/**
+ * Supplies the component metadata rules to be used when resolving a configuration.
+ */
 @ServiceScope(Scope.Project.class)
-public interface ComponentMetadataHandlerInternal extends ComponentMetadataHandler {
+public interface ComponentMetadataRulesSupplier {
 
-    void setVariantDerivationStrategy(VariantDerivationStrategy strategy);
-
-    VariantDerivationStrategy getVariantDerivationStrategy();
-
-    void onAddRule(Consumer<DisplayName> consumer);
-
-    ImmutableComponentMetadataRules getConfiguredRules();
+    ImmutableComponentMetadataRules getRules();
 
 }

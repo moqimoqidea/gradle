@@ -25,7 +25,6 @@ import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
 import org.gradle.api.artifacts.component.ModuleComponentSelector;
 import org.gradle.api.artifacts.component.ProjectComponentSelector;
 import org.gradle.api.internal.DomainObjectContext;
-import org.gradle.api.internal.artifacts.ComponentMetadataProcessorFactory;
 import org.gradle.api.internal.artifacts.ComponentSelectorConverter;
 import org.gradle.api.internal.artifacts.DefaultResolverResults;
 import org.gradle.api.internal.artifacts.ImmutableModuleIdentifierFactory;
@@ -142,7 +141,6 @@ public class ResolutionExecutor {
     private final ResolutionFailureHandler resolutionFailureHandler;
     private final VariantArtifactSetCache variantArtifactSetCache;
     private final VariantTransformRegistry transformRegistry;
-    private final ComponentMetadataProcessorFactory componentMetadataProcessorFactory;
     private final AttributeDesugaring attributeDesugaring;
     private final NamedObjectInstantiator namedObjectInstantiator;
 
@@ -175,7 +173,6 @@ public class ResolutionExecutor {
         ResolutionFailureHandler resolutionFailureHandler,
         VariantArtifactSetCache variantArtifactSetCache,
         VariantTransformRegistry transformRegistry,
-        ComponentMetadataProcessorFactory componentMetadataProcessorFactory,
         AttributeDesugaring attributeDesugaring,
         NamedObjectInstantiator namedObjectInstantiator
     ) {
@@ -206,7 +203,6 @@ public class ResolutionExecutor {
         this.resolutionFailureHandler = resolutionFailureHandler;
         this.variantArtifactSetCache = variantArtifactSetCache;
         this.transformRegistry = transformRegistry;
-        this.componentMetadataProcessorFactory = componentMetadataProcessorFactory;
         this.attributeDesugaring = attributeDesugaring;
         this.namedObjectInstantiator = namedObjectInstantiator;
     }
@@ -456,7 +452,8 @@ public class ResolutionExecutor {
         // state to `createResolvers` that is specific to this resolution.
         resolvers.add(externalResolverFactory.createResolvers(
             repositories,
-            componentMetadataProcessorFactory,
+            params.getComponentMetadataRules(),
+            params.getVariantDerivationStrategy(),
             legacyParams.getComponentSelectionRules(),
             params.isDependencyVerificationEnabled(),
             params.getCacheExpirationControl(),

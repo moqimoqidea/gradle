@@ -42,10 +42,12 @@ import org.gradle.api.internal.artifacts.configurations.DefaultConfigurationServ
 import org.gradle.api.internal.artifacts.configurations.DependencyMetaDataProvider;
 import org.gradle.api.internal.artifacts.configurations.ResolutionStrategyFactory;
 import org.gradle.api.internal.artifacts.dsl.ComponentMetadataHandlerInternal;
+import org.gradle.api.internal.artifacts.dsl.ComponentMetadataRulesSupplier;
 import org.gradle.api.internal.artifacts.dsl.DefaultArtifactHandler;
 import org.gradle.api.internal.artifacts.dsl.DefaultComponentMetadataHandler;
 import org.gradle.api.internal.artifacts.dsl.DefaultComponentModuleMetadataHandler;
 import org.gradle.api.internal.artifacts.dsl.DefaultRepositoryHandler;
+import org.gradle.api.internal.artifacts.dsl.ImmutableComponentMetadataRules;
 import org.gradle.api.internal.artifacts.dsl.PublishArtifactNotationParser;
 import org.gradle.api.internal.artifacts.dsl.PublishArtifactNotationParserFactory;
 import org.gradle.api.internal.artifacts.dsl.dependencies.DefaultDependencyConstraintHandler;
@@ -79,6 +81,7 @@ import org.gradle.api.internal.artifacts.repositories.DefaultUrlArtifactReposito
 import org.gradle.api.internal.artifacts.repositories.ResolutionAwareRepository;
 import org.gradle.api.internal.artifacts.repositories.metadata.IvyMutableModuleMetadataFactory;
 import org.gradle.api.internal.artifacts.repositories.metadata.MavenMutableModuleMetadataFactory;
+import org.gradle.api.internal.artifacts.repositories.metadata.MavenVariantAttributesFactory;
 import org.gradle.api.internal.artifacts.repositories.transport.RepositoryTransportFactory;
 import org.gradle.api.internal.artifacts.transform.ConsumerProvidedVariantFinder;
 import org.gradle.api.internal.artifacts.transform.DefaultTransformInvocationFactory;
@@ -110,7 +113,6 @@ import org.gradle.api.internal.project.ProjectStateRegistry;
 import org.gradle.api.internal.provider.PropertyFactory;
 import org.gradle.api.internal.tasks.TaskDependencyFactory;
 import org.gradle.api.model.ObjectFactory;
-import org.gradle.api.problems.Problems;
 import org.gradle.api.problems.internal.ProblemsInternal;
 import org.gradle.api.provider.ProviderFactory;
 import org.gradle.cache.Cache;
@@ -144,7 +146,6 @@ import org.gradle.internal.model.CalculatedValueContainerFactory;
 import org.gradle.internal.operations.BuildOperationProgressEventEmitter;
 import org.gradle.internal.operations.BuildOperationRunner;
 import org.gradle.internal.reflect.Instantiator;
-import org.gradle.internal.resolve.caching.ComponentMetadataRuleExecutor;
 import org.gradle.internal.resource.local.FileResourceListener;
 import org.gradle.internal.resource.local.FileResourceRepository;
 import org.gradle.internal.resource.local.LocallyAvailableResourceFinder;
@@ -153,7 +154,6 @@ import org.gradle.internal.service.ServiceRegistration;
 import org.gradle.internal.service.ServiceRegistrationProvider;
 import org.gradle.internal.service.ServiceRegistry;
 import org.gradle.internal.service.ServiceRegistryBuilder;
-import org.gradle.util.internal.SimpleMapInterner;
 
 import java.io.File;
 import java.util.List;
@@ -529,19 +529,16 @@ public class DefaultDependencyManagementServices implements DependencyManagement
 
         @Provides({ComponentMetadataHandler.class, ComponentMetadataHandlerInternal.class})
         DefaultComponentMetadataHandler createComponentMetadataHandler(
-            Instantiator instantiator,
-            ObjectFactory objectFactory,
+            InstantiatorFactory instantiatorFactory,
             ImmutableModuleIdentifierFactory moduleIdentifierFactory,
-            SimpleMapInterner interner,
-            AttributesFactory attributesFactory,
             IsolatableFactory isolatableFactory,
-            ComponentMetadataRuleExecutor componentMetadataRuleExecutor,
-            PlatformSupport platformSupport,
-            Problems problems
+            MavenVariantAttributesFactory mavenVariantAttributesFactory
         ) {
-            DefaultComponentMetadataHandler componentMetadataHandler = instantiator.newInstance(DefaultComponentMetadataHandler.class, instantiator, moduleIdentifierFactory, interner, attributesFactory, isolatableFactory, componentMetadataRuleExecutor, platformSupport, problems);
+            InstanceGenerator instantiator = instantiatorFactory.decorateScheme().instantiator();
+
+            DefaultComponentMetadataHandler componentMetadataHandler = instantiator.newInstance(DefaultComponentMetadataHandler.class, isolatableFactory, moduleIdentifierFactory);
             if (domainObjectContext.isScript()) {
-                componentMetadataHandler.setVariantDerivationStrategy(objectFactory.newInstance(JavaEcosystemVariantDerivationStrategy.class));
+                componentMetadataHandler.setVariantDerivationStrategy(instantiator.newInstance(JavaEcosystemVariantDerivationStrategy.class, mavenVariantAttributesFactory));
             }
             return componentMetadataHandler;
         }
@@ -572,11 +569,18 @@ public class DefaultDependencyManagementServices implements DependencyManagement
         }
 
         @Provides
-        ComponentMetadataProcessorFactory createComponentMetadataProcessorFactory(ComponentMetadataHandlerInternal componentMetadataHandler, DependencyResolutionManagementInternal dependencyResolutionManagement, DomainObjectContext context) {
-            if (context.isScript()) {
-                return componentMetadataHandler::createComponentMetadataProcessor;
-            }
-            return componentMetadataHandler.createFactory(dependencyResolutionManagement);
+        ComponentMetadataRulesSupplier createComponentMetadataRulesSupplier(
+            ComponentMetadataHandlerInternal componentMetadataHandler,
+            DependencyResolutionManagementInternal drm,
+            DomainObjectContext context
+        ) {
+            return () -> {
+                ImmutableComponentMetadataRules rules = componentMetadataHandler.getConfiguredRules();
+                if (context.isScript() || (!rules.getRules().isEmpty() && drm.getConfiguredRulesMode().useProjectRules())) {
+                    return rules;
+                }
+                return ((ComponentMetadataHandlerInternal) drm.getComponents()).getConfiguredRules();
+            };
         }
 
         @Provides
