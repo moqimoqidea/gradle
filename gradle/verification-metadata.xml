@@ -317,6 +317,7 @@
          <trusted-key id="7B9751FC3F01F134F476464CD0EB627D4885CED1" group="org.apache.velocity" name="velocity"/>
          <trusted-key id="7C669810892CBD3148FA92995B05CCDE140C2876" group="org.eclipse.jgit"/>
          <trusted-key id="7E22D50A7EBD9D2CD269B2D4056ACA74D46000BF" group="io.netty" name="netty-all"/>
+         <trusted-key id="7E6557B314B189FD4EA5B680FE66BCA17E67AE6F" group="com.thoughtworks.qdox" name="qdox"/>
          <trusted-key id="7FAA0F2206DE228F0DB01AD741321490758AAD6F" group="org.codehaus.groovy"/>
          <trusted-key id="80F6D6B0D90C6747753344CAB5A9E81B565E89E0" group="org.tomlj" name="tomlj"/>
          <trusted-key id="82C9EC0E52C47A936A849E0113D979595E6D01E1" group="org.apache.maven.shared" name="maven-shared-utils"/>
