@@ -168,11 +168,12 @@ val core = platform("core") {
         subproject("normalization-api")
         subproject("normalization-java")
         subproject("persistent-cache")
-        subproject("worker-process-services")
         subproject("request-handler-worker")
         subproject("scoped-persistent-cache")
         subproject("snapshots")
         subproject("worker-main")
+        subproject("worker-process-services")
+        subproject("worker-shared")
         subproject("workers")
     }
 }

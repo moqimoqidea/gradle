@@ -76,6 +76,7 @@ dependencies {
     api(projects.time)
     api(projects.toolingApi)
     api(projects.versionedCache)
+    api(projects.workerShared)
 
     api(libs.asm)
     api(libs.asmTree)

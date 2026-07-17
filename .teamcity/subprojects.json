@@ -1722,6 +1722,13 @@
     "crossVersionTests": false
   },
   {
+    "name": "worker-shared",
+    "path": "platforms/core-execution/worker-shared",
+    "unitTests": true,
+    "functionalTests": false,
+    "crossVersionTests": false
+  },
+  {
     "name": "workers",
     "path": "platforms/core-execution/workers",
     "unitTests": true,

@@ -52,6 +52,7 @@ dependencies {
     implementation(projects.scopedPersistentCache)
     implementation(projects.serviceRegistryBuilder)
     implementation(projects.workerMain)
+    implementation(projects.workerShared)
 
     // The worker infrastructure should _not_ depend on :core. :core contains much
     // of the Gradle daemon implementation, and brings in a much larger classpath
