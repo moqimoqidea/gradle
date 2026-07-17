@@ -36,7 +36,6 @@ dependencies {
     api(libs.jspecify)
 
     implementation(projects.ant)
-    implementation(projects.antImpl)  // WorkerDaemonServer directly references DefaultIsolatedAntBuilder
     implementation(projects.baseServices)
     implementation(projects.buildOperations)
     implementation(projects.buildProcessServices)
@@ -47,6 +46,7 @@ dependencies {
     implementation(projects.fileTemp)
     implementation(projects.groovyLoader)
     implementation(projects.hashing)
+    implementation(projects.isolatedAntBuilder)
     implementation(projects.messaging)
     implementation(projects.persistentCache)
     implementation(projects.problemsApi)

@@ -903,6 +903,13 @@
     "crossVersionTests": false
   },
   {
+    "name": "isolated-ant-builder",
+    "path": "platforms/software/isolated-ant-builder",
+    "unitTests": false,
+    "functionalTests": true,
+    "crossVersionTests": false
+  },
+  {
     "name": "ivy",
     "path": "platforms/software/ivy",
     "unitTests": true,

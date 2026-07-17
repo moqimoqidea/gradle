@@ -16,9 +16,11 @@
 
 package org.gradle.api.internal.project.ant;
 
-import org.gradle.api.Project;
-import org.gradle.api.internal.project.AntBuilderFactory;
-import org.gradle.api.internal.project.DefaultAntBuilderFactory;
+import org.gradle.api.internal.ClassPathRegistry;
+import org.gradle.api.internal.classpath.ModuleRegistry;
+import org.gradle.api.internal.project.IsolatedAntBuilder;
+import org.gradle.api.internal.project.antbuilder.DefaultIsolatedAntBuilder;
+import org.gradle.internal.classloader.ClassLoaderFactory;
 import org.gradle.internal.service.Provides;
 import org.gradle.internal.service.ServiceRegistration;
 import org.gradle.internal.service.ServiceRegistrationProvider;
@@ -26,17 +28,18 @@ import org.gradle.internal.service.scopes.AbstractGradleModuleServices;
 import org.jspecify.annotations.NullMarked;
 
 @NullMarked
-public class AntModuleServices extends AbstractGradleModuleServices {
+public class AntWorkerServices extends AbstractGradleModuleServices {
 
     @Override
-    public void registerProjectServices(ServiceRegistration registration) {
-        registration.addProvider(new AntProjectScopeServices());
+    public void registerBuildServices(ServiceRegistration registration) {
+        registration.addProvider(new AntBuildScopeServices());
     }
 
-    private static class AntProjectScopeServices implements ServiceRegistrationProvider {
+    private static class AntBuildScopeServices implements ServiceRegistrationProvider {
         @Provides
-        AntBuilderFactory createAntBuilderFactory(Project project) {
-            return new DefaultAntBuilderFactory(project, new DefaultAntLoggingAdapterFactory());
+        IsolatedAntBuilder createIsolatedAntBuilder(ClassPathRegistry classPathRegistry, ClassLoaderFactory classLoaderFactory, ModuleRegistry moduleRegistry) {
+            return new DefaultIsolatedAntBuilder(classPathRegistry, classLoaderFactory, moduleRegistry);
         }
     }
+
 }

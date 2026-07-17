@@ -218,6 +218,7 @@ val software = platform("software") {
     subproject("dependency-management")
     subproject("plugins-distribution")
     subproject("distributions-publishing")
+    subproject("isolated-ant-builder")
     subproject("ivy")
     subproject("maven")
     subproject("platform-base")
