@@ -103,16 +103,13 @@ No action is required in Gradle 9.x; if you set it explicitly, you can remove it
 
 === Potential breaking changes
 
-[[publish_no_sha256_sha512_checksums]]
-==== SHA-256 and SHA-512 checksums are no longer published
+[[publish_no_checksums_for_signature_files]]
+==== Checksum files are no longer published for signature files
 
-When publishing to Maven or Ivy repositories, Gradle no longer publishes `.sha256` and `.sha512` checksum files alongside each artifact.
-Only universally supported checksums are published: `.sha1` and `.md5` for Maven and `.sha1` for Ivy.
+When publishing to Maven or Ivy repositories, Gradle no longer publishes checksum files (such as `.sha1` and `.md5`) for signature files like `.asc` and `.sig`.
 
-These extra checksums were rarely consumed and frequently rejected by repositories that do not recognize them.
-Consuming builds are unaffected as Gradle has never required SHA-256 or SHA-512 checksums to be present in order to resolve or verify artifacts.
-
-The internal, undocumented `org.gradle.internal.publish.checksums.insecure` system property, which previously suppressed these extra checksums, no longer has any effect and can be removed.
+A signature is itself an integrity artifact, so a checksum of a signature provides no additional protection, and the standard Maven publishing tooling does not publish these files either.
+The signature files themselves continue to be published unchanged; only their checksum files are no longer produced.
 
 [[project_cache_dir_no_longer_watched]]
 ==== The project cache directory is no longer watched
