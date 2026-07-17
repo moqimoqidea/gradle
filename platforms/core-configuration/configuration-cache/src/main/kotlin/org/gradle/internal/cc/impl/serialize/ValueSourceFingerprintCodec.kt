@@ -19,6 +19,7 @@ package org.gradle.internal.cc.impl.serialize
 import org.gradle.internal.cc.base.exceptions.ConfigurationCacheThrowable
 import org.gradle.internal.cc.impl.fingerprint.ConfigurationCacheFingerprint
 import org.gradle.internal.configuration.problems.PropertyTrace
+import org.gradle.internal.configuration.problems.StructuredMessage
 import org.gradle.internal.extensions.stdlib.uncheckedCast
 import org.gradle.internal.serialize.graph.Codec
 import org.gradle.internal.serialize.graph.ReadContext
@@ -54,6 +55,18 @@ internal object ValueSourceFingerprintCodec : Codec<ConfigurationCacheFingerprin
 
 
 internal class ValueSourceFingerprintLoadFailure(
-    val valueSourceType: Class<*>,
+    valueSourceType: Class<*>,
     cause: Throwable
-) : Exception(cause)
+) : FingerprintDeserializationException(valueSourceLoadFailureReason(valueSourceType, cause), cause) {
+
+    private
+    companion object {
+        fun valueSourceLoadFailureReason(valueSourceType: Class<*>, cause: Throwable): StructuredMessage =
+            StructuredMessage.build {
+                text("the value of a build logic input of type ")
+                reference(valueSourceType.simpleName)
+                text(" could not be loaded")
+                generateSequence(cause) { it.cause }.last().message?.let { text(": $it") }
+            }
+    }
+}

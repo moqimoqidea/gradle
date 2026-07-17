@@ -64,7 +64,7 @@ class ConfigurationCacheValueSourceIntegrationTest extends AbstractConfiguration
         outputContains("configuration cache cannot be reused because the value of a build logic input of type 'PoisonValueSource' could not be loaded: cannot deserialize Poison")
 
         and: "the full stack trace of the underlying failure is available at the info level"
-        outputContains("Configuration cache entry discarded because a build logic input could not be loaded")
+        outputContains("Configuration cache entry discarded because a fingerprint value could not be loaded")
         outputContains("java.lang.RuntimeException: cannot deserialize Poison")
     }
 

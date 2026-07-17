@@ -58,7 +58,7 @@ import org.gradle.internal.cc.impl.models.BuildTreeModel
 import org.gradle.internal.cc.impl.models.BuildTreeModelSideEffectStore
 import org.gradle.internal.cc.impl.models.IntermediateModelController
 import org.gradle.internal.cc.impl.problems.ConfigurationCacheProblems
-import org.gradle.internal.cc.impl.serialize.ValueSourceFingerprintLoadFailure
+import org.gradle.internal.cc.impl.serialize.FingerprintDeserializationException
 import org.gradle.internal.cc.impl.services.ConfigurationCacheBuildTreeModelSideEffectExecutor
 import org.gradle.internal.cc.impl.services.DeferredRootBuildGradle
 import org.gradle.internal.component.local.model.LocalComponentGraphResolveState
@@ -884,18 +884,9 @@ class DefaultConfigurationCache internal constructor(
 
                 else -> CheckedFingerprint.Invalid(buildPath(), invalidationReason)
             }
-        } catch (e: ValueSourceFingerprintLoadFailure) {
-            logger.info("Configuration cache entry discarded because a build logic input could not be loaded", e)
-            CheckedFingerprint.Invalid(buildPath(), valueSourceLoadFailureReason(e))
-        }
-
-    private
-    fun valueSourceLoadFailureReason(failure: ValueSourceFingerprintLoadFailure): StructuredMessage =
-        StructuredMessage.build {
-            text("the value of a build logic input of type ")
-            reference(failure.valueSourceType.simpleName)
-            text(" could not be loaded")
-            generateSequence(failure as Throwable) { it.cause }.last().message?.let { text(": $it") }
+        } catch (e: FingerprintDeserializationException) {
+            logger.info("Configuration cache entry discarded because a fingerprint value could not be loaded", e)
+            CheckedFingerprint.Invalid(buildPath(), e.reason)
         }
 
     private
