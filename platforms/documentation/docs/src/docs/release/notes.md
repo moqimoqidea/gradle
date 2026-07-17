@@ -14,11 +14,11 @@ We are excited to announce Gradle @version@ (released [@releaseDate@](https://gr
 
 In this release, the [Isolated Projects](#isolated-projects) performance feature graduates from experimental to incubating, bringing safe parallel project configuration and tools to help you migrate your build.
 
-This release also enhances the [Configuration Cache](#configuration-cache-improvements): `ResolutionResult` can now be included directly as a task input, and source dependencies resolved from version control repositories become fully cache-compatible.
+This release also enhances the [Configuration Cache](#configuration-cache-improvements): `ResolutionResult` can now be included directly as a task input, Java agents and TestKit work better together, and a source of spurious invalidation when used from IntelliJ IDEA was removed.
 
 [Test reporting and execution](#test-reporting-and-execution) now surfaces framework-initialization failures for TestNG, JUnit 4, and JUnit Platform in the console by default, and Gradle's `threadPoolFactoryClass` option for TestNG now supports TestNG 7.10 and later.
 
-The [CLI, logging, and problem reporting](#cli-logging-and-problem-reporting) now shows a source location for up to 2050 problems per build, up from 50, so the console, problems report, and Tooling API pinpoint many more issues.
+In [CLI, logging, and problem reporting](#cli-logging-and-problem-reporting), Gradle now shows a source location for up to 2050 problems per build, up from 50, so the console, problems report, and Tooling API pinpoint many more issues.
 
 [Build authoring](#build-authoring-improvements) gains a `reproducibleFileTimestamp` property on archive tasks for `SOURCE_DATE_EPOCH`-compatible builds. `ResolvedArtifactResult` also gains new `getAttributes()` and `getCapabilities()` accessors.
 
