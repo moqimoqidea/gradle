@@ -75,8 +75,7 @@ public class ApacheCommonsHttpClient implements HttpClient {
 
     private static ObjectMapper createObjectMapper() {
         return new ObjectMapper()
-            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-            .configure(JsonGenerator.Feature.AUTO_CLOSE_TARGET, false);
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     }
 
     private final DocumentationRegistry documentationRegistry;
