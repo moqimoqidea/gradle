@@ -12,15 +12,15 @@
 
 We are excited to announce Gradle @version@ (released [@releaseDate@](https://gradle.org/releases/)).
 
-In this release, [Isolated Projects](#isolated-projects) performance feature graduates from experimental to incubating, bringing safe parallel project configuration and a number of tools to help you migrate.
+In this release, the [Isolated Projects](#isolated-projects) performance feature graduates from experimental to incubating, bringing safe parallel project configuration and tools to help you migrate your build.
 
 This release also enhances the [Configuration Cache](#configuration-cache-improvements): `ResolutionResult` can now be included directly as a task input, and source dependencies resolved from version control repositories become fully cache-compatible.
 
-[Test reporting and execution](#test-reporting-and-execution) now surfaces framework-initialization failures for TestNG, JUnit 4, and JUnit Platform in the console by default, and Gradle’s `threadPoolFactoryClass` option for TestNG now supports TestNG 7.10 and later.
+[Test reporting and execution](#test-reporting-and-execution) now surfaces framework-initialization failures for TestNG, JUnit 4, and JUnit Platform in the console by default, and Gradle's `threadPoolFactoryClass` option for TestNG now supports TestNG 7.10 and later.
 
-The [CLI, logging, and problem reporting](#cli-logging-and-problem-reporting) captures source locations for up to 2000 more problems past the existing 50-problem cap, so the console, problems report, and Tooling API pinpoint many more issues.
+The [CLI, logging, and problem reporting](#cli-logging-and-problem-reporting) now shows a source location for up to 2050 problems per build, up from 50, so the console, problems report, and Tooling API pinpoint many more issues.
 
-[Build authoring](#build-authoring-improvements) gains a `reproducibleFileTimestamp` property on archive tasks for `SOURCE_DATE_EPOCH`-compatible builds, along with new `getAttributes()` and `getCapabilities()` accessors on `ResolvedArtifactResult`.
+[Build authoring](#build-authoring-improvements) gains a `reproducibleFileTimestamp` property on archive tasks for `SOURCE_DATE_EPOCH`-compatible builds. `ResolvedArtifactResult` also gains new `getAttributes()` and `getCapabilities()` accessors.
 
 For [platform and toolchain management](#platform-and-toolchain-management), `DomainObjectCollection.getElements()` returns a new lazy Provider that bridges the Domain Object Collection and Provider APIs, and `Groovydoc` gains Java-toolchain support.
 
@@ -60,11 +60,11 @@ For Java, Groovy, Kotlin, and Android compatibility, see the [full compatibility
 ## New features and usability improvements
 
 ### Isolated Projects
-[Isolated Projects](userguide/isolated_projects.html) is a performance feature that allows safely running project configuration in parallel and significantly reduces configuration time across many scenarios, including IDE sync and CI builds.
+[Isolated Projects](userguide/isolated_projects.html) is a performance feature that safely runs project configuration in parallel, significantly reducing configuration time in many scenarios, including IDE sync and CI builds.
 
-Before running any task, Gradle needs to run the [Configuration Phase](userguide/build_lifecycle_intermediate.html). For repeating build invocations, this phase can be avoided via [Configuration Cache](userguide/configuration_cache.html). In all other cases, build invocations have to spend an often noticeable amount of time configuring projects, especially in large builds. This also applies to IDE sync, where the configuration phase cannot be skipped.
+Before running any task, Gradle must complete the [Configuration Phase](userguide/build_lifecycle_intermediate.html). The [Configuration Cache](userguide/configuration_cache.html) lets repeated build invocations skip this phase entirely, but any other invocation configures every project, which is a noticeable cost in large builds. This includes IDE sync, where the Configuration Phase cannot be cached.
 
-Isolated Projects makes the configuration phase more scalable by leveraging parallelism. Instead of configuring projects one after the other, each project is configured in isolation, which can be done concurrently with its siblings.
+Isolated Projects accelerates the Configuration Phase. Today, it does so through parallelism: because each project is configured in isolation, sibling projects can be configured concurrently rather than sequentially. In the future, it will also configure projects incrementally, skipping the phase for any project whose configuration has not changed.
 
 ![Isolated Projects demo](release-notes-assets/isolated-projects.gif)
 
@@ -77,19 +77,19 @@ org.gradle.isolated-projects=true
 
 Enabling Isolated Projects can result in [behavior changes](userguide/isolated_projects.html#sec:behavior_changes); the documentation describes each one and how to avoid it.
 
-Isolated Projects serves as the foundation for future scalability work, allowing for more parallelism and reuse of work in the configuration phase.
+Isolated Projects serves as the foundation for future scalability work, allowing for more parallelism and reuse of work in the Configuration Phase.
 
 #### Isolated Projects constraints
-In order for builds to stay reliable under added parallelism, the isolation of projects has to be enforced via new [constraints](userguide/isolated_projects.html#sec:constraints) applied to the build logic. The core principle is that the configuration logic of a project cannot touch the mutable state of other projects or the build. For instance, calling `project(":other").tasks` or `gradle.extensions` is not allowed. Upon detecting a violation of the constraints, Gradle will fail the build immediately.
+To keep builds reliable with added parallelism, project isolation must be enforced via new [constraints](userguide/isolated_projects.html#sec:constraints) applied to the build logic. The core principle is that the configuration logic of a project cannot touch the mutable state of other projects or the build. For instance, calling `project(":other").tasks` or `gradle.extensions` is not allowed. Upon detecting a violation of the constraints, Gradle will fail the build immediately.
 
-Initially, builds might have many violations, and Isolated Projects comes with a [Diagnostics mode](userguide/isolated_projects.html#sec:diagnostics_mode) that allows you to discover them without compromising safety.
+Initially, builds may contain many violations, and Isolated Projects includes a [Diagnostics mode](userguide/isolated_projects.html#sec:diagnostics_mode) that lets you discover them without compromising safety.
 
 ```text
 # gradle.properties
 org.gradle.isolated-projects.diagnostics=true
 ```
 
-During the migration period, it can be useful to relax the constraints in order to evaluate the performance benefit specific to your build. It is possible to dangerously ignore the violations by treating them as warnings:
+During the migration period, it can be useful to relax constraints to evaluate the performance benefit specific to your build. It is possible to dangerously ignore the violations by treating them as warnings:
 
 ```text
 # gradle.properties
@@ -113,11 +113,11 @@ The feature is not enabled by default and is not yet recommended for production 
 See the [Isolated Projects](userguide/isolated_projects.html) documentation in the Gradle User Manual for more details.
 
 ### Configuration Cache improvements
-Gradle provides a [Configuration Cache](userguide/configuration_cache.html) that improves build time by caching the result of the configuration phase and reusing it for subsequent builds.
+Gradle provides a [Configuration Cache](userguide/configuration_cache.html) that improves build time by caching the result of the Configuration Phase and reusing it for subsequent builds.
 
 #### `ResolutionResult` is fully Configuration Cache compatible
 A [`ResolutionResult`](javadoc/org/gradle/api/artifacts/result/ResolutionResult.html) may now be included directly as a task input when using Configuration Cache.
-Previously, its root [`ResolvedComponentResult`](javadoc/org/gradle/api/artifacts/result/ResolvedComponentResult.html) and [`ResolvedVariantResult`](javadoc/org/gradle/api/artifacts/result/ResolvedVariantResult.html) needed to be extracted and included on the task separately.
+
 This provides easy access to convenience APIs on `ResolutionResult`, avoiding the need to traverse the graph manually to access them.
 
 ```kotlin
@@ -156,6 +156,8 @@ tasks.register<NewTask>("after") {
     resolutionResult = configurations.runtimeClasspath.map { it.incoming.resolutionResult }
 }
 ```
+
+Previously, the root [`ResolvedComponentResult`](javadoc/org/gradle/api/artifacts/result/ResolvedComponentResult.html) and [`ResolvedVariantResult`](javadoc/org/gradle/api/artifacts/result/ResolvedVariantResult.html) needed to be extracted and included on the task separately.
 
 #### Third-party Java agents work with the Configuration Cache in TestKit
 [TestKit](userguide/test_kit.html) lets plugin authors functionally test their build logic by running real builds with `GradleRunner`.
@@ -245,10 +247,12 @@ tasks.named<Test>("test") {
 Gradle provides an intuitive [command-line interface](userguide/command_line_interface.html), detailed [logs](userguide/logging.html), and a structured [problems report](userguide/reporting_problems.html#sec:generated_html_report) that helps developers quickly identify and resolve build issues.
 
 #### Source locations for more problems
-To keep stack trace capture affordable, Gradle attached a source location to only the first 50 problems per build, so builds that report many problems (especially deprecations) left most of them without a file and line number.
+Gradle infers a [problem's](userguide/reporting_problems.html) source location from a captured stack trace.
+Because capture is expensive, only the first 50 problems per build received one, so builds that report many problems (especially deprecations) left most of them without a file and line number.
 
-Gradle now captures a source location for up to 2000 additional problems past that cap.
-The capture mechanism is far cheaper than a full stack trace, so the added coverage has negligible cost.
+In this release, the first 50 problems still get full stack traces.
+Past that cap, Gradle now uses a much cheaper capture to attach a source location to up to 2000 more problems, at negligible cost.
+
 As a result, the [console](userguide/command_line_interface.html), the [problems report](userguide/reporting_problems.html#sec:generated_html_report), and the [Tooling API](userguide/third_party_integration.html) show a source location for many more problems than before.
 
 ![Problems report listing many problems with their source locations](release-notes-assets/problems-locations.png)
