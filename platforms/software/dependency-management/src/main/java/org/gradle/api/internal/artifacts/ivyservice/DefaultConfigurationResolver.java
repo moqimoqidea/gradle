@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.gradle.api.internal.artifacts.ivyservice;
 
 import com.google.common.collect.ImmutableList;
@@ -36,6 +35,8 @@ import org.gradle.api.internal.artifacts.configurations.ConfigurationInternal;
 import org.gradle.api.internal.artifacts.configurations.ConfigurationsProvider;
 import org.gradle.api.internal.artifacts.configurations.DependencyMetaDataProvider;
 import org.gradle.api.internal.artifacts.configurations.ResolutionStrategyInternal;
+import org.gradle.api.internal.artifacts.dsl.ComponentMetadataHandlerInternal;
+import org.gradle.api.internal.artifacts.dsl.ComponentMetadataRulesSupplier;
 import org.gradle.api.internal.artifacts.dsl.ImmutableModuleReplacements;
 import org.gradle.api.internal.artifacts.ivyservice.moduleconverter.AdhocRootComponentProvider;
 import org.gradle.api.internal.artifacts.ivyservice.moduleconverter.ProjectRootComponentProvider;
@@ -64,6 +65,7 @@ import org.gradle.internal.model.CalculatedValueContainerFactory;
 import org.gradle.util.Path;
 import org.jspecify.annotations.Nullable;
 
+import javax.inject.Inject;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -83,9 +85,12 @@ public class DefaultConfigurationResolver implements ConfigurationResolver {
     private final AttributeSchemaServices attributeSchemaServices;
     private final LocalVariantGraphResolveStateBuilder variantStateBuilder;
     private final CalculatedValueContainerFactory calculatedValueContainerFactory;
+    private final ComponentMetadataHandlerInternal componentMetadataHandler;
+    private final ComponentMetadataRulesSupplier componentMetadataRulesSupplier;
     private final boolean useEnhancedOrdering;
     private final RootComponentProvider rootComponentProvider;
 
+    @Inject
     public DefaultConfigurationResolver(
         RepositoriesSupplier repositoriesSupplier,
         ShortCircuitingResolutionExecutor resolutionExecutor,
@@ -94,6 +99,8 @@ public class DefaultConfigurationResolver implements ConfigurationResolver {
         AttributeSchemaServices attributeSchemaServices,
         LocalVariantGraphResolveStateBuilder variantStateBuilder,
         CalculatedValueContainerFactory calculatedValueContainerFactory,
+        ComponentMetadataHandlerInternal componentMetadataHandler,
+        ComponentMetadataRulesSupplier componentMetadataRulesSupplier,
         FeatureFlags featureFlags,
         RootComponentProvider rootComponentProvider
     ) {
@@ -104,6 +111,8 @@ public class DefaultConfigurationResolver implements ConfigurationResolver {
         this.attributeSchemaServices = attributeSchemaServices;
         this.variantStateBuilder = variantStateBuilder;
         this.calculatedValueContainerFactory = calculatedValueContainerFactory;
+        this.componentMetadataHandler = componentMetadataHandler;
+        this.componentMetadataRulesSupplier = componentMetadataRulesSupplier;
         this.useEnhancedOrdering = featureFlags.isEnabled(FeaturePreviews.Feature.ENHANCED_GRAPH_ORDERING);
         this.rootComponentProvider = rootComponentProvider;
     }
@@ -178,7 +187,9 @@ public class DefaultConfigurationResolver implements ConfigurationResolver {
             resolutionStrategy.isFailingOnDynamicVersions(),
             resolutionStrategy.isFailingOnChangingVersions(),
             failureResolutions,
-            resolutionStrategy.getCachePolicy().asImmutable()
+            resolutionStrategy.getCachePolicy().asImmutable(),
+            componentMetadataRulesSupplier.getRules(),
+            componentMetadataHandler.getVariantDerivationStrategy()
         );
     }
 
@@ -323,6 +334,8 @@ public class DefaultConfigurationResolver implements ConfigurationResolver {
         private final ImmutableModuleIdentifierFactory moduleIdentifierFactory;
         private final ImmutableAttributesSchemaFactory attributesSchemaFactory;
         private final LocalComponentGraphResolveStateFactory localResolveStateFactory;
+        private final ComponentMetadataHandlerInternal componentMetadataHandler;
+        private final ComponentMetadataRulesSupplier componentMetadataRulesSupplier;
         private final FeatureFlags featureFlags;
 
         public Factory(
@@ -337,6 +350,8 @@ public class DefaultConfigurationResolver implements ConfigurationResolver {
             ImmutableModuleIdentifierFactory moduleIdentifierFactory,
             ImmutableAttributesSchemaFactory attributesSchemaFactory,
             LocalComponentGraphResolveStateFactory localResolveStateFactory,
+            ComponentMetadataHandlerInternal componentMetadataHandler,
+            ComponentMetadataRulesSupplier componentMetadataRulesSupplier,
             FeatureFlags featureFlags
         ) {
             this.moduleIdentity = moduleIdentity;
@@ -350,6 +365,8 @@ public class DefaultConfigurationResolver implements ConfigurationResolver {
             this.moduleIdentifierFactory = moduleIdentifierFactory;
             this.attributesSchemaFactory = attributesSchemaFactory;
             this.localResolveStateFactory = localResolveStateFactory;
+            this.componentMetadataHandler = componentMetadataHandler;
+            this.componentMetadataRulesSupplier = componentMetadataRulesSupplier;
             this.featureFlags = featureFlags;
         }
 
@@ -369,6 +386,8 @@ public class DefaultConfigurationResolver implements ConfigurationResolver {
                 attributeSchemaServices,
                 variantStateBuilder,
                 calculatedValueContainerFactory,
+                componentMetadataHandler,
+                componentMetadataRulesSupplier,
                 featureFlags,
                 rootComponentProvider
             );
