@@ -338,6 +338,7 @@ class DefaultConfigurationCacheCodecs(
 
         fingerprintUserTypesBindings = makeUserTypeBindings {
             bind(ValueSourceFingerprintCodec)
+            bind(SystemPropertyChangedFingerprintCodec)
             providerTypes(
                 propertyFactory,
                 filePropertyFactory,
