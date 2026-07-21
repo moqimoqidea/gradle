@@ -59,8 +59,9 @@ class MavenRfc9457RemoteResolveIntegrationTest extends AbstractHttpDependencyRes
         then:
         fails "retrieve"
         failure.assertHasCause("Could not download projectA-1.2.jar (group:projectA:1.2)")
+        failure.assertHasCause("Could not GET '${module.artifact.uri}'.")
         failure.assertHasCause(
-            "Could not GET '${module.artifact.uri}'. Received status code 403 from server: " +
+            "Received status code 403 from server: " +
                 "Artifact 'group:projectA:1.2' is quarantined pending policy review (rule: 'block-untrusted-publishers')."
         )
     }
@@ -82,8 +83,9 @@ class MavenRfc9457RemoteResolveIntegrationTest extends AbstractHttpDependencyRes
         then:
         fails "retrieve"
         failure.assertHasCause("Could not download projectA-1.2.jar (group:projectA:1.2)")
+        failure.assertHasCause("Could not GET '${module.artifact.uri}'.")
         failure.assertHasCause(
-            "Could not GET '${module.artifact.uri}'. Received status code 451 from server: " +
+            "Received status code 451 from server: " +
                 "The artifact group:projectA:1.2 uses a GPL-3.0 license, which is not permitted by the organization's approved-licenses policy."
         )
     }
