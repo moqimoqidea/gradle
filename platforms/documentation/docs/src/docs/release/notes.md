@@ -14,19 +14,15 @@ We are excited to announce Gradle @version@ (released [@releaseDate@](https://gr
 
 In this release, the [Isolated Projects](#isolated-projects) performance feature graduates from experimental to incubating, bringing safe parallel project configuration and tools to help you migrate your build.
 
-This release also enhances the [Configuration Cache](#configuration-cache-improvements): `ResolutionResult` can now be included directly as a task input, Java agents and TestKit work better together, and a source of spurious invalidation when used from IntelliJ IDEA was removed.
+This release also enhances the [Configuration Cache](#configuration-cache-improvements), where tasks gain access to higher-level dependency resolution APIs, Java agents and TestKit work better together, and a source of spurious invalidation when used from IntelliJ IDEA was removed.
 
-[Test reporting and execution](#test-reporting-and-execution) now surfaces framework-initialization failures for TestNG, JUnit 4, and JUnit Platform in the console by default, and Gradle's `threadPoolFactoryClass` option for TestNG now supports TestNG 7.10 and later.
+[Test reporting and execution](#test-reporting-and-execution) now surfaces framework-initialization failures for TestNG, JUnit 4, and JUnit Platform in the console by default, and supports the new way of controlling parallelism in TestNG 7.10 and later.
 
 In [CLI, logging, and problem reporting](#cli-logging-and-problem-reporting), Gradle now shows a source location for up to 2050 problems per build, up from 50, so the console, problems report, and Tooling API pinpoint many more issues.
 
-[Build authoring](#build-authoring-improvements) gains a `reproducibleFileTimestamp` property on archive tasks for `SOURCE_DATE_EPOCH`-compatible builds. `ResolvedArtifactResult` also gains new `getAttributes()` and `getCapabilities()` accessors.
+[Security and infrastructure](#security-and-infrastructure) improvements make trusted PGP keys easier to document and signing-key rotations easier to spot, while [build authoring](#build-authoring-improvements) gains a `reproducibleFileTimestamp` property on archive tasks for `SOURCE_DATE_EPOCH`-compatible builds, along with several new APIs for build and plugin authors.
 
-For [platform and toolchain management](#platform-and-toolchain-management), `DomainObjectCollection.getElements()` returns a new lazy Provider that bridges the Domain Object Collection and Provider APIs, and `Groovydoc` gains Java-toolchain support.
-
-[Security and infrastructure](#security-and-infrastructure) improvements let dependency verification carry `origin` and `reason` attributes on trusted PGP keys, and report how many other keys you already trust for a failing artifact — making key rotations easier to distinguish from first-time trusts.
-
-Finally, [general improvements](#general-improvements) let file system watching work with a custom project cache directory, and drop Kotlin DSL accessor generation from the Build Cache.
+Finally, [performance improvements](#performance-improvements) let file system watching work with a custom project cache directory, and [dependency management](#dependency-management-enhancements) previews improved dependency resolution ordering.
 
 We would like to thank the following community members for their contributions to this release of Gradle:
 [Adam](https://github.com/aSemy),
@@ -62,9 +58,9 @@ For Java, Groovy, Kotlin, and Android compatibility, see the [full compatibility
 ### Isolated Projects
 [Isolated Projects](userguide/isolated_projects.html) is a performance feature that safely runs project configuration in parallel, significantly reducing configuration time in many scenarios, including IDE sync and CI builds.
 
-Before running any task, Gradle must complete the [Configuration Phase](userguide/build_lifecycle_intermediate.html). The [Configuration Cache](userguide/configuration_cache.html) lets repeated build invocations skip this phase entirely, but any other invocation configures every project, which is a noticeable cost in large builds. This includes IDE sync, where the Configuration Phase cannot be cached.
+Before running any task, Gradle must complete the [configuration phase](userguide/build_lifecycle_intermediate.html). The [Configuration Cache](userguide/configuration_cache.html) lets repeated build invocations skip this phase entirely, but any other invocation configures every project, which is a noticeable cost in large builds. This includes IDE sync, where the configuration phase cannot be cached.
 
-Isolated Projects accelerates the Configuration Phase. Today, it does so through parallelism: because each project is configured in isolation, sibling projects can be configured concurrently rather than sequentially. In the future, it will also configure projects incrementally, skipping the phase for any project whose configuration has not changed.
+Isolated Projects accelerates the configuration phase. Today, it does so through parallelism: because each project is configured in isolation, sibling projects can be configured concurrently rather than sequentially. In the future, it will also configure projects incrementally, skipping the phase for any project whose configuration has not changed.
 
 ![Isolated Projects demo](release-notes-assets/isolated-projects.gif)
 
@@ -77,7 +73,7 @@ org.gradle.isolated-projects=true
 
 Enabling Isolated Projects can result in [behavior changes](userguide/isolated_projects.html#sec:behavior_changes); the documentation describes each one and how to avoid it.
 
-Isolated Projects serves as the foundation for future scalability work, allowing for more parallelism and reuse of work in the Configuration Phase.
+Isolated Projects serves as the foundation for future scalability work, allowing for more parallelism and reuse of work in the configuration phase.
 
 #### Isolated Projects constraints
 To keep builds reliable with added parallelism, project isolation must be enforced via new [constraints](userguide/isolated_projects.html#sec:constraints) applied to the build logic. The core principle is that the configuration logic of a project cannot touch the mutable state of other projects or the build. For instance, calling `project(":other").tasks` or `gradle.extensions` is not allowed. Upon detecting a violation of the constraints, Gradle will fail the build immediately.
@@ -113,12 +109,14 @@ The feature is not enabled by default and is not yet recommended for production 
 See the [Isolated Projects](userguide/isolated_projects.html) documentation in the Gradle User Manual for more details.
 
 ### Configuration Cache improvements
-Gradle provides a [Configuration Cache](userguide/configuration_cache.html) that improves build time by caching the result of the Configuration Phase and reusing it for subsequent builds.
+Gradle provides a [Configuration Cache](userguide/configuration_cache.html) that improves build time by caching the result of the configuration phase and reusing it for subsequent builds.
 
 #### `ResolutionResult` is fully Configuration Cache compatible
 A [`ResolutionResult`](javadoc/org/gradle/api/artifacts/result/ResolutionResult.html) may now be included directly as a task input when using Configuration Cache.
 
-This provides easy access to convenience APIs on `ResolutionResult`, avoiding the need to traverse the graph manually to access them.
+This provides easy access to convenience APIs on `ResolutionResult`, avoiding the need to traverse the dependency graph manually to access them.
+This is useful for tasks that want to analyze the resolved dependency graph structure without needing to download the associated artifacts (JARs).
+For example, a task that generates a report of all resolved dependencies (such as a license report or an SBOM) can use `allComponents` directly, or a task that verifies that no dynamic versions are used can inspect `allDependencies` without manually walking the graph from the root:
 
 ```kotlin
 // Before
@@ -262,6 +260,42 @@ Past the cap, including under `--warning-mode=all` and `fail`, the capture keeps
 
 See the [CLI reference](userguide/command_line_interface.html#sec:command_line_warnings) in the Gradle User Manual for more details.
 
+### Security and infrastructure
+Gradle provides robust [security features and underlying infrastructure](userguide/security.html) to ensure that builds are secure, reproducible, and easy to maintain.
+
+#### Document the origin and reason of trusted PGP keys
+Gradle's [dependency verification](userguide/dependency_verification.html) helps you mitigate security risks by ensuring downloaded artifacts match expected checksums or are signed with trusted keys.
+
+Dependency verification metadata already lets you [annotate checksums](userguide/dependency_verification.html#sec:trusting-artifacts) with `origin` and `reason` attributes to document where a checksum was obtained and why it is trusted.
+
+Starting with this release, the same `origin` and `reason` attributes are also supported on the `<trusted-key>` and `<pgp>` elements, so you can record where a public key was verified (for example, the URL it was downloaded from) directly alongside the key:
+
+```xml
+<trusted-keys>
+   <trusted-key id="8756c4f765c9ac3cb6b85d62379ce192d401ab61"
+                group="com.github.javaparser"
+                origin="https://keyserver.ubuntu.com"
+                reason="Verified against the maintainer's website"/>
+</trusted-keys>
+```
+
+These attributes are purely informational: Gradle preserves them across read/write cycles but never uses them during verification.
+Existing verification metadata files continue to be read without changes; files written by this version of Gradle use the new `dependency-verification-1.4.xsd` schema.
+
+#### Dependency verification reports other trusted keys for the same module or group
+When [dependency verification](userguide/dependency_verification.html) fails because an artifact was signed with a key that could not be found on any key server, it can be hard to tell whether you are pulling a brand-new dependency for the first time or whether a previously trusted dependency has had its signing key rotated.
+
+Gradle now appends the number of other keys you already trust for the failing artifact to the message, distinguishing keys trusted for the specific `group:module` from keys trusted for the whole `group`:
+
+```text
+> On artifact foo-1.0.jar (org:foo:1.0) in repository 'maven': Artifact was signed with key '14F53F0824875D73' but it wasn't found in any key server so it couldn't be verified (1 other key is already trusted for module 'org:foo'; 3 other keys are already trusted for group 'org')
+```
+
+A non-zero count is a strong signal that the signing key has been rotated rather than that you are trusting the module or group for the first time, making it easier to react appropriately.
+This note now appears in both the console output and the generated HTML verification report.
+
+See the [Verifying dependency signatures](userguide/dependency_verification.html#sec:signature-verification) section in the Gradle User Manual for more details.
+
 ### Build authoring improvements
 Gradle provides [rich APIs](userguide/getting_started_dev.html) for build engineers and plugin authors, enabling the creation of custom, reusable build logic and better maintainability.
 
@@ -290,9 +324,6 @@ The [`ResolvedArtifactResult.getAttributes()`](javadoc/org/gradle/api/artifacts/
 #### New `getInputStream()` method on `BuildCacheEntryWriter`
 Authors of custom [`BuildCacheService`](javadoc/org/gradle/caching/BuildCacheService.html) implementations can now obtain cache entry content as an `InputStream` via [`BuildCacheEntryWriter.getInputStream()`](javadoc/org/gradle/caching/BuildCacheEntryWriter.html#getInputStream()), as an alternative to writing to an `OutputStream` via `writeTo`.
 Consuming an `InputStream` can be more efficient for I/O, especially for asynchronous HTTP clients.
-
-### Platform and toolchain management
-Gradle provides comprehensive support for [Native development](userguide/building_cpp_projects.html) and [JVM languages](userguide/building_java_projects.html), featuring automated [Toolchains](userguide/toolchains.html) for seamless JDK management.
 
 #### New lazy element provider for Domain Object Collections
 [`DomainObjectCollection.getElements()`](javadoc/org/gradle/api/DomainObjectCollection.html#getElements()) returns a `Provider<? extends Collection<T>>` and acts as an important bridge between the [Domain Object Collection](userguide/collections.html) and [Provider APIs](userguide/properties_providers.html).
@@ -337,44 +368,8 @@ tasks.named<Groovydoc>("groovydoc") {
 }
 ```
 
-### Security and infrastructure
-Gradle provides robust [security features and underlying infrastructure](userguide/security.html) to ensure that builds are secure, reproducible, and easy to maintain.
-
-#### Document the origin and reason of trusted PGP keys
-Gradle's [dependency verification](userguide/dependency_verification.html) helps you mitigate security risks by ensuring downloaded artifacts match expected checksums or are signed with trusted keys.
-
-Dependency verification metadata already lets you [annotate checksums](userguide/dependency_verification.html#sec:trusting-artifacts) with `origin` and `reason` attributes to document where a checksum was obtained and why it is trusted.
-
-Starting with this release, the same `origin` and `reason` attributes are also supported on the `<trusted-key>` and `<pgp>` elements, so you can record where a public key was verified (for example, the URL it was downloaded from) directly alongside the key:
-
-```xml
-<trusted-keys>
-   <trusted-key id="8756c4f765c9ac3cb6b85d62379ce192d401ab61"
-                group="com.github.javaparser"
-                origin="https://keyserver.ubuntu.com"
-                reason="Verified against the maintainer's website"/>
-</trusted-keys>
-```
-
-These attributes are purely informational: Gradle preserves them across read/write cycles but never uses them during verification.
-Existing verification metadata files continue to be read without changes; files written by this version of Gradle use the new `dependency-verification-1.4.xsd` schema.
-
-#### Dependency verification reports other trusted keys for the same module or group
-When [dependency verification](userguide/dependency_verification.html) fails because an artifact was signed with a key that could not be found on any key server, it can be hard to tell whether you are pulling a brand-new dependency for the first time or whether a previously trusted dependency has had its signing key rotated.
-
-Gradle now appends the number of other keys you already trust for the failing artifact to the message, distinguishing keys trusted for the specific `group:module` from keys trusted for the whole `group`:
-
-```text
-> On artifact foo-1.0.jar (org:foo:1.0) in repository 'maven': Artifact was signed with key '14F53F0824875D73' but it wasn't found in any key server so it couldn't be verified (1 other key is already trusted for module 'org:foo'; 3 other keys are already trusted for group 'org')
-```
-
-A non-zero count is a strong signal that the signing key has been rotated rather than that you are trusting the module or group for the first time, making it easier to react appropriately.
-This note now appears in both the console output and the generated HTML verification report.
-
-See the [Verifying dependency signatures](userguide/dependency_verification.html#sec:signature-verification) section in the Gradle User Manual for more details.
-
-### General improvements
-Gradle provides various incremental updates and performance optimizations to ensure the continued reliability of the build ecosystem.
+### Performance improvements
+Gradle continuously improves [build performance](userguide/performance.html) through caching, parallelism, and reduced overhead across all phases of the build.
 
 #### Kotlin DSL accessor generation is no longer stored in the build cache
 Generating the [type-safe Kotlin DSL accessors](userguide/kotlin_dsl.html#type-safe-accessors) for a project produces Kotlin source files.
@@ -404,6 +399,9 @@ $ ./gradlew build --watch-fs --project-cache-dir /custom/path
 ```
 
 See the [Excluding files and directories](userguide/file_system_watching.html#sec:excluding_files_and_directories) section in the Gradle User Manual for more details.
+
+### Dependency management enhancements
+Gradle provides a flexible [dependency management](userguide/getting_started_dep_man.html) engine for declaring, resolving, and verifying the dependencies your build needs.
 
 #### Preview improved dependency resolution ordering
 When Gradle resolves a [configuration](userguide/dependency_configurations.html), the order of the resulting artifacts, such as entries on a JVM classpath, is determined by how the dependency graph is traversed.
